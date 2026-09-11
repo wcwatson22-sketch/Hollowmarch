@@ -27,8 +27,8 @@ workflows:
     environment:
       vars:
         BUNDLE_ID: 'com.clearpathdigital.hollowmarch'
-        # Replace with the numeric Apple ID from App Store Connect -> App Information.
-        APP_STORE_APPLE_ID: 0000000000
+        # Numeric Apple ID from App Store Connect -> App Information.
+        APP_STORE_APPLE_ID: 6811036531
       node: 20.11.0
       xcode: latest
       cocoapods: default
