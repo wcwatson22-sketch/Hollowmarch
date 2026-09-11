@@ -1,0 +1,9 @@
+node_modules/
+# Generated: `npm run build` assembles it from index.html, css/ and js/.
+www/
+# Generated on the build machine by `npx cap add ios`, so it can never drift from
+# capacitor.config.json.
+ios/
+android/
+.DS_Store
+*.log

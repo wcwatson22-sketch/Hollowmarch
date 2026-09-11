@@ -1,0 +1,22 @@
+{
+  "appId": "com.clearpathdigital.hollowmarch",
+  "appName": "Hollowmarch",
+  "webDir": "www",
+  "backgroundColor": "#141218",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#141218"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#141218",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#141218",
+      "overlaysWebView": true
+    }
+  }
+}

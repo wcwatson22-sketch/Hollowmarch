@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#141218" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Hollowmarch</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/mobile.css" />
+</head>
+<body>
+
+  <!-- ===== Main menu ===== -->
+  <div id="screen-menu" class="screen">
+    <div class="create-box menu-box">
+      <h1>HOLLOWMARCH</h1>
+      <p class="tagline">Nine zones, then whatever is waiting at the tenth.</p>
+      <div id="saveCard" class="savecard hidden"></div>
+      <div class="menu-actions">
+        <button id="menuContinue" class="primary hidden">Continue</button>
+        <button id="menuNew" class="primary">New Character</button>
+        <button id="menuWipe" class="danger hidden">Delete Character</button>
+      </div>
+      <p class="note menu-note">There is no offline progress. The march only advances
+        while you are watching it.</p>
+    </div>
+  </div>
+
+  <!-- ===== Class select ===== -->
+  <div id="screen-create" class="screen hidden">
+    <div class="create-box">
+      <h1>HOLLOWMARCH</h1>
+      <p class="tagline">Nine zones, then whatever is waiting at the tenth.</p>
+      <p class="sub">Choose a class. This decides your abilities, your companion, and how you fight — you can't change it later.</p>
+      <label class="namefield">
+        Name <input id="charName" maxlength="14" placeholder="Nameless" />
+      </label>
+      <div id="classGrid" class="class-grid"></div>
+      <div class="menu-actions">
+        <button id="createBack">Back</button>
+        <button id="startBtn" class="primary" disabled>Begin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Game ===== -->
+  <div id="screen-game" class="screen hidden">
+    <header class="topbar">
+      <div class="ident">
+        <span id="charLabel">—</span>
+        <span class="lvl">Lv <b id="charLevel">1</b></span>
+        <span class="lives" id="lives" title="Lives remaining. Run out and this character is gone. A boss kill gives one back."></span>
+      </div>
+      <div class="bar xpbar"><div id="xpFill"></div><span id="xpText">0 / 0</span></div>
+      <div class="gold">⛃ <b id="goldText">0</b></div>
+      <div class="topctl">
+        <button id="pauseBtn" aria-label="Pause">Pause</button>
+        <button id="speedBtn" aria-label="Speed">1×</button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <div class="viewport">
+        <div class="canvaswrap">
+          <canvas id="game"></canvas>
+          <!-- Loot alerts sit over the fight and can be acted on in place. -->
+          <div id="toasts" class="toasts"></div>
+          <!-- Embers drift through the scene; clicking one is a small permanent gain. -->
+          <div id="embers" class="embers"></div>
+          <!-- Shown for a few seconds after a defeat, so dying registers as a setback
+               rather than a hiccup in the log. -->
+          <div id="respawn" class="respawn hidden"></div>
+        </div>
+        <div class="healthrow">
+          <div class="unit">
+            <span class="uname" id="pName">You</span>
+            <div class="bar hp"><div id="pHp"></div><span id="pHpText"></span></div>
+            <div class="auras" id="pAuras"></div>
+          </div>
+          <div class="unit" id="petUnit">
+            <span class="uname" id="cName">Companion</span>
+            <div class="bar hp pet"><div id="cHp"></div><span id="cHpText"></span></div>
+            <div class="auras" id="cAuras"></div>
+          </div>
+          <div class="unit">
+            <span class="uname" id="eName">Enemy</span>
+            <div class="bar hp enemy"><div id="eHp"></div><span id="eHpText"></span></div>
+            <div class="auras" id="eAuras"></div>
+          </div>
+        </div>
+        <div class="zoneprog">
+          <span id="zoneProgText">0 / 10</span>
+          <div class="pips" id="zonePips"></div>
+        </div>
+
+        <!-- Always visible, so the effect of equipping something is immediate and
+             doesn't require opening a panel to find. Changed values flash a delta. -->
+        <div class="vitals" id="vitals"></div>
+
+        <!-- The only damage meter. It is the readout every gear and talent decision is
+             steered by, so it lives under the fight rather than behind a tab. -->
+        <div class="meterbar" id="meterBar"></div>
+      </div>
+
+      <aside class="side">
+        <nav class="tabs">
+          <button class="tab active" data-tab="play">Play <span id="lootBadge" class="badge hidden">0</span></button>
+          <button class="tab" data-tab="char">Character <span id="talentBadge" class="badge hidden">0</span></button>
+        </nav>
+
+        <!-- Everything you act on mid-fight lives here, so loot and rotation
+             decisions never require leaving the tab you are watching. -->
+        <div class="panel" id="tab-play">
+          <div class="sec"><h4>Rotation</h4><div id="sec-abilities"></div></div>
+        </div>
+
+        <div class="panel hidden" id="tab-char">
+          <div class="sec"><h4>Bags</h4><div id="sec-loot"></div></div>
+          <div class="sec hidden" id="petSec"><h4>Companion</h4><div id="sec-pet"></div></div>
+          <div class="sec"><h4>Equipped</h4><div id="sec-equipped"></div></div>
+          <div class="sec"><h4>Talents</h4><div id="sec-talents"></div></div>
+          <div class="sec runctl">
+            <h4>This run</h4>
+            <div class="runbtns">
+              <button id="saveBtn">Save</button>
+              <button id="menuBtn">Save &amp; Quit</button>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+    </main>
+
+    <section class="logrow">
+      <div id="combatLog" class="log"></div>
+    </section>
+
+    <div id="awayNotice" class="awaynotice hidden">Halted — tab not visible</div>
+
+    <!-- Phone navigation. Hidden on wide screens, where the tab strip is enough. -->
+    <nav class="bottomnav" id="bottomNav">
+      <button class="bnav active" data-tab="play"><span>Play</span><span id="lootDot" class="dot hidden"></span></button>
+      <button class="bnav" data-tab="char"><span>Character</span><span id="talentDot" class="dot hidden"></span></button>
+    </nav>
+  </div>
+
+  <!-- ===== The run is over ===== -->
+  <div id="deadModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>The march ends here</h2>
+      <p id="deadBody" class="note"></p>
+      <div class="evactions"><button id="deadOk" class="primary">Back to the menu</button></div>
+    </div>
+  </div>
+
+  <!-- ===== Wayside encounter: a chest, a merchant, or an enchanter ===== -->
+  <div id="eventModal" class="modal hidden">
+    <div class="modal-box">
+      <h2 id="eventTitle">—</h2>
+      <div id="eventBody"></div>
+      <div id="eventActions" class="evactions"></div>
+    </div>
+  </div>
+
+  <!-- ===== Level 5: keep the companion, or go alone ===== -->
+  <div id="choiceModal" class="modal hidden">
+    <div class="modal-box">
+      <h2 id="choiceTitle">A parting of ways</h2>
+      <p id="choiceBody" class="note"></p>
+      <div class="choices">
+        <button id="choiceKeep" class="choice"></button>
+        <button id="choiceSolo" class="choice"></button>
+      </div>
+      <p class="note">This is permanent. Choosing to go alone removes companion talents
+        and stops Bond affixes from dropping.</p>
+    </div>
+  </div>
+
+  <!-- Tap-to-read tooltip target; see css/mobile.css. -->
+  <div id="tipTap" class="tiptap hidden"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

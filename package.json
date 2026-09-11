@@ -1,0 +1,25 @@
+{
+  "name": "hollowmarch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "2D pixel auto-battler: nine zones, a boss on the tenth, and no offline progress",
+  "scripts": {
+    "start": "node server.js",
+    "balance": "node tools/balance.mjs",
+    "build": "node tools/make-assets.mjs && node tools/build-www.mjs",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:ios": "npm run build && npx cap sync ios && npx @capacitor/assets generate --ios --assetPath assets && npx cap open ios",
+    "assets": "node tools/make-assets.mjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
+    "@capacitor/status-bar": "^6.0.1",
+    "@capacitor/splash-screen": "^6.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/assets": "^3.0.5"
+  }
+}
