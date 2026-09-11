@@ -75,14 +75,38 @@ workflows:
           cd ios/App
           agvtool new-version -all $(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0) + 1))
 
-      - name: Fetch signing files
+      - name: Fetch signing files and apply them
         script: |
+          set -e
           keychain initialize
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
-          xcode-project use-profiles
+
+          # `cap add ios` regenerates the Xcode project on every build, so its bundle
+          # identifier is whatever Capacitor produced rather than something committed and
+          # reviewed. If it does not match the profile fetched above, `use-profiles` has
+          # nothing to apply -- and it only warns in that case, so the build sails on and
+          # fails ten minutes later inside xcodebuild as "App requires a provisioning
+          # profile", which names neither the mismatch nor the step that caused it.
+          sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID;/g" \
+            ios/App/App.xcodeproj/project.pbxproj
+
+          echo "--- bundle identifiers in the generated project ---"
+          grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*' ios/App/App.xcodeproj/project.pbxproj | sort -u
+
+          xcode-project use-profiles --code-signing-setup-verbose-logging
+
+          echo "--- signing settings that reached the project ---"
+          grep -E -o '(PROVISIONING_PROFILE_SPECIFIER|DEVELOPMENT_TEAM|CODE_SIGN_IDENTITY|CODE_SIGN_STYLE) = [^;]*' \
+            ios/App/App.xcodeproj/project.pbxproj | sort -u
+
+          # Fail here, where the cause is on screen, rather than in the archive.
+          if ! grep -q PROVISIONING_PROFILE_SPECIFIER ios/App/App.xcodeproj/project.pbxproj; then
+            echo "No provisioning profile was applied to the project -- see the two listings above." >&2
+            exit 1
+          fi
 
       - name: Archive
         script: |
