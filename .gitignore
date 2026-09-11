@@ -7,3 +7,6 @@ ios/
 android/
 .DS_Store
 *.log
+
+# App Store Connect API private keys. These belong in the Codemagic UI, never here.
+*.p8
