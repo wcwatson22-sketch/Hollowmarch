@@ -52,6 +52,33 @@ workflows:
           include: true
 
     scripts:
+      - name: Check the signing variables arrived
+        script: |
+          # A missing variable currently surfaces twenty minutes in, as an argparse usage
+          # dump from a tool that says only "is not defined" -- not whether the name is
+          # wrong, the group is wrong, or the group was never imported. Names only below;
+          # no values are printed.
+          echo "--- every variable name visible to this build ---"
+          env | cut -d= -f1 | sort | tr '\n' ' '
+          echo
+          echo
+          echo "--- the ones signing needs ---"
+          for v in CERTIFICATE_PRIVATE_KEY APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_KEY_IDENTIFIER APP_STORE_CONNECT_PRIVATE_KEY BUNDLE_ID APP_STORE_APPLE_ID; do
+            if printenv "$v" > /dev/null 2>&1; then
+              echo "ok       $v ($(printenv "$v" | wc -c | tr -d ' ') bytes)"
+            else
+              echo "MISSING  $v"
+            fi
+          done
+
+          if ! printenv CERTIFICATE_PRIVATE_KEY > /dev/null 2>&1; then
+            echo "" >&2
+            echo "CERTIFICATE_PRIVATE_KEY did not reach the build." >&2
+            echo "Compare the name against the list above: it must be spelled exactly that" >&2
+            echo "way, and its variable group must be exactly ios_signing." >&2
+            exit 1
+          fi
+
       - name: Install dependencies
         script: |
           npm install
