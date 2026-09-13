@@ -9,7 +9,7 @@
 #      UI as a Developer Portal integration named `Hollowmarch`. The name below has to
 #      match it exactly; a mismatch fails the build before any script runs.
 #   2. The app record exists in App Store Connect under bundle id
-#      com.clearpathdigital.hollowmarch, Apple ID 6811036531.
+#      com.hollowmarch.app, Apple ID 6811036531.
 #   3. A 2048-bit RSA key is stored as the secret variable CERTIFICATE_PRIVATE_KEY in the
 #      variable group `ios_signing`. The signing certificate is bound to this key, so it
 #      has to outlive any single build -- see the signing step.
@@ -37,7 +37,7 @@ workflows:
         # Supplies CERTIFICATE_PRIVATE_KEY.
         - ios_signing
       vars:
-        BUNDLE_ID: 'com.clearpathdigital.hollowmarch'
+        BUNDLE_ID: 'com.hollowmarch.app'
         # Numeric Apple ID from App Store Connect -> App Information.
         APP_STORE_APPLE_ID: 6811036531
       node: 20.11.0

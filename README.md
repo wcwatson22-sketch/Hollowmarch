@@ -16,7 +16,7 @@ npm run cap:ios        # sync + generate icons + open Xcode
 `codemagic.yaml` does all of that on a build machine and uploads to TestFlight. Before the
 first run, in the Codemagic UI: add an App Store Connect API key named `codemagic`, and
 set `APP_STORE_APPLE_ID` in the workflow to the numeric Apple ID of the app record. The
-bundle id is `com.clearpathdigital.hollowmarch`.
+bundle id is `com.hollowmarch.app`.
 
 `ios/` and `www/` are both generated and both gitignored, so the native project can never
 drift out of step with `capacitor.config.json`, and the shipped web root can never go
