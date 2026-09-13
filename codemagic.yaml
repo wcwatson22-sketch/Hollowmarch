@@ -97,10 +97,24 @@ workflows:
 
       - name: Add the iOS platform
         script: |
+          set -e
           # Generated rather than committed, so the native project can never drift out of
           # sync with capacitor.config.json.
           npx cap add ios
+
+          # Capacitor 6's template targets iOS 13. Apple refuses uploads below 15.0 from
+          # Spring 2027 and warns on every delivery until then (ITMS-90068). The floor is
+          # written in two places and both have to move; raise them before `cap sync`
+          # reinstalls the pods, or the pods keep the old target.
+          sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '15.0'/" ios/App/Podfile
+          sed -i '' "s/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g" \
+            ios/App/App.xcodeproj/project.pbxproj
+
           npx cap sync ios
+
+          echo "--- deployment target ---"
+          grep -n 'platform :ios' ios/App/Podfile
+          grep -o 'IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*' ios/App/App.xcodeproj/project.pbxproj | sort -u
 
       - name: Generate app icons and launch images
         script: |
