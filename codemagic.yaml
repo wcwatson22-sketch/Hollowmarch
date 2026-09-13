@@ -110,8 +110,26 @@ workflows:
 
       - name: Set the build number
         script: |
+          # This is also the first point at which APP_STORE_APPLE_ID is proved to name an
+          # app record this key can read. The lookup used to be silenced and defaulted to
+          # zero, so an unreachable record was indistinguishable from "no builds yet" and
+          # only surfaced at the very end, as altool refusing the upload.
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>&1) || LATEST=""
+          echo "latest TestFlight build for Apple ID $APP_STORE_APPLE_ID: ${LATEST:-<lookup failed>}"
+
+          case "$LATEST" in
+            '' | *[!0-9]* )
+              echo "No build number came back. If the upload later fails with 'Cannot determine"
+              echo "the Apple ID from Bundle ID', the App Store Connect record for Apple ID"
+              echo "$APP_STORE_APPLE_ID is not bound to $BUNDLE_ID -- check App Information."
+              NEXT=1
+              ;;
+            * ) NEXT=$((LATEST + 1)) ;;
+          esac
+
+          echo "building as $NEXT"
           cd ios/App
-          agvtool new-version -all $(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0) + 1))
+          agvtool new-version -all "$NEXT"
 
       - name: Fetch signing files and apply them
         script: |
