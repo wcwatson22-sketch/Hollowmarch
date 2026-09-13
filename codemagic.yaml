@@ -112,6 +112,15 @@ workflows:
 
           npx cap sync ios
 
+          # Declare up front that the app uses no encryption, rather than answering the
+          # same question by hand in App Store Connect for every build. Accurate here: the
+          # game makes no network requests of any kind and touches no crypto API, so there
+          # is nothing to declare beyond the exemption.
+          PLIST=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Print :ITSAppUsesNonExemptEncryption" "$PLIST"
+
           echo "--- deployment target ---"
           grep -n 'platform :ios' ios/App/Podfile
           grep -o 'IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*' ios/App/App.xcodeproj/project.pbxproj | sort -u
