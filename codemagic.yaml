@@ -137,20 +137,22 @@ workflows:
           # app record this key can read. The lookup used to be silenced and defaulted to
           # zero, so an unreachable record was indistinguishable from "no builds yet" and
           # only surfaced at the very end, as altool refusing the upload.
+          # Codemagic's own build counter is the source of truth, because it only ever goes
+          # up and needs nothing from Apple. Asking App Store Connect for the last
+          # TestFlight build is the more obvious approach and it kept coming back empty,
+          # which silently produced build 1 twice and a 409 from altool the second time.
           LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>&1) || LATEST=""
           echo "latest TestFlight build for Apple ID $APP_STORE_APPLE_ID: ${LATEST:-<lookup failed>}"
+          case "$LATEST" in '' | *[!0-9]* ) LATEST=0 ;; esac
 
-          case "$LATEST" in
-            '' | *[!0-9]* )
-              echo "No build number came back. If the upload later fails with 'Cannot determine"
-              echo "the Apple ID from Bundle ID', the App Store Connect record for Apple ID"
-              echo "$APP_STORE_APPLE_ID is not bound to $BUNDLE_ID -- check App Information."
-              NEXT=1
-              ;;
-            * ) NEXT=$((LATEST + 1)) ;;
-          esac
+          # Still take Apple's number into account when it is available: a repository moved
+          # to another CI project would restart the counter and start colliding again.
+          NEXT=$BUILD_NUMBER
+          if [ "$NEXT" -le "$LATEST" ]; then
+            NEXT=$((LATEST + 1))
+          fi
 
-          echo "building as $NEXT"
+          echo "building as $NEXT (codemagic counter $BUILD_NUMBER, apple says $LATEST)"
           cd ios/App
           agvtool new-version -all "$NEXT"
 
