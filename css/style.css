@@ -95,7 +95,7 @@ button.primary:disabled { background: var(--line); color: var(--dim); cursor: no
 .unit .uname { font-size: 11px; color: var(--dim); display: block; margin-bottom: 3px; }
 .unit .bar { width: 100%; }
 
-.zoneprog { display: flex; align-items: center; gap: 10px; padding: 6px 10px 10px; font-size: 11px; color: var(--dim); }
+.zoneline { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--dim); white-space: nowrap; }
 .pips { display: flex; gap: 3px; }
 .pip { width: 12px; height: 6px; background: #0d0c14; border: 1px solid var(--line); }
 .pip.on { background: var(--accent); border-color: var(--accent); }
@@ -146,10 +146,9 @@ button.primary:disabled { background: var(--line); color: var(--dim); cursor: no
 .note { color: var(--dim); font-size: 11px; margin-top: 10px; }
 
 /* ---------- log ---------- */
-.logrow { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 0 12px 14px; align-items: end; }
 .log {
   background: var(--panel); border: 1px solid var(--line); padding: 8px;
-  height: 92px; overflow-y: auto; font-size: 11px; line-height: 1.5;
+  height: 340px; overflow-y: auto; font-size: 11px; line-height: 1.5;
 }
 .log div { color: var(--dim); }
 .log .good { color: #7fd07f; }
@@ -172,7 +171,7 @@ button.primary:disabled { background: var(--line); color: var(--dim); cursor: no
   border: 1px solid var(--line); color: var(--dim); white-space: nowrap;
 }
 .aura.stun { color: #ffd75f; border-color: #6a5a2a; }
-.zoneprog .cp { color: var(--accent); margin-left: 10px; }
+.zoneline .cp { color: var(--accent); margin-left: 6px; }
 
 /* ---------- damage meter ---------- */
 .meterhead { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }

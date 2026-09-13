@@ -48,15 +48,24 @@
   .topbar {
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-areas: 'ident ctl' 'xp gold';
+    grid-template-areas: 'ident ctl' 'zone gold' 'xp xp';
     gap: 4px 8px;
     padding: 6px 10px;
     flex: none;
   }
   .topbar .ident { grid-area: ident; min-width: 0; display: flex; align-items: center; gap: 6px; }
+  /* No hard cap: the name had 40vw while zone and gold fought it for the rest of the
+     row, so "Wcwatson the Warlock" truncated to a few letters. Zone is on its own row
+     now and the name may use what is left beside the buttons. */
+  .topbar .ident { flex: 1; min-width: 0; }
   .topbar .ident #charLabel {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+    font-size: 11px;
   }
+  .topbar .ident .lvl { font-size: 10px; margin-left: 6px; }
+  .topbar .zoneline { grid-area: zone; font-size: 10px; min-width: 0; overflow: hidden; }
+  .topbar .zoneline .cp { display: none; }
+  .topbar .zoneline .pips { display: none; }
   .topbar .xpbar { grid-area: xp; height: 13px; }
   .topbar .xpbar span { font-size: 8px; line-height: 13px; }
   /* Gold rides at the end of the XP row rather than competing with the name for space
@@ -64,7 +73,7 @@
   .topbar .gold { grid-area: gold; font-size: 10px; align-self: center; white-space: nowrap; }
   .topctl { grid-area: ctl; display: flex; gap: 6px; }
   .topctl button {
-    min-width: 56px; min-height: 30px; padding: 4px 10px; font-size: 10px;
+    min-width: 44px; min-height: 30px; padding: 4px 7px; font-size: 9px;
     background: var(--panel2); color: var(--text); border: 1px solid var(--line);
   }
 
@@ -120,35 +129,34 @@
   }
   .aura { font-size: 7px; padding: 1px 3px; flex: 0 0 auto; }
 
-  /* One line: "Zone 3 - 4 / 10" and the pips. The checkpoint flag and the word "slain"
-     wrapped this onto two rows for no information gained. */
-  .zoneprog {
-    padding: 4px 8px; font-size: 9px;
-    display: flex; align-items: center; gap: 8px; white-space: nowrap;
-  }
-  .zoneprog .cp { display: none; }
-  .zoneprog .pips { flex: 1; justify-content: flex-end; }
 
   /* Stats become one horizontally-scrollable row of chips. Wrapping them cost three
      rows of vertical space that the panel needs more. */
   .vitals {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1px;
     padding: 0;
   }
-  .vitals::-webkit-scrollbar { display: none; }
   /* Lives and DPS lead the row. Everything else can be scrolled to, but the number that
      ends your run and the number you steer by must not be off the edge of the screen. */
-  .vital { flex: 0 0 auto; min-width: 68px; padding: 5px 9px; }
+  .vital { min-width: 0; padding: 6px 9px; }
+  /* Tighter where the panel is the point: four across instead of three puts the same
+     stats in two rows rather than three, and the bags need the height more than the
+     stats need the width. */
+  .scene-away .vitals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .scene-away .vital { padding: 4px 7px; }
+  .scene-away .vital .vv { font-size: 11px; }
   .vital[data-k="lives"] { order: -2; }
   .vital[data-k="__dps"] { order: -1; }
   .vital .vl { font-size: 7px; }
   .vital .vv { font-size: 12px; }
 
-  .meterbar { flex: none; padding: 6px 8px 7px; }
+  /* Grows into whatever the scene does not use, and scrolls if a build has more damage
+     sources than fit. It was fixed-height inside a column that had already run out of
+     room, so the bottom of it was simply cut off the screen. */
+  .vitals, .healthrow { flex: none; }
+  .meterbar { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 8px 7px; }
   .mbhead { gap: 6px; margin-bottom: 4px; }
   .mbbig { font-size: 15px; }
   .mbstat { font-size: 9px; }
@@ -156,22 +164,25 @@
   .mbname { min-width: 0; }
   .mbdmg { flex: none; }
   .mbpct { flex: none; min-width: 30px; }
-  /* One source. The meter's job on a phone is "what is carrying this build", and the
-     answer is the top line; the rest is height the fight wants. Full list on desktop. */
-  .mbrow:nth-of-type(n + 3) { display: none; }
+  /* Every source, now that the meter owns the bottom of the Play screen. On Character
+     the scene stands down and the panel wants the room back, so it clamps there. */
+  .scene-away .meterbar { flex: none; overflow: visible; }
+  .scene-away .mbrow:nth-of-type(n + 3) { display: none; }
 
   /* The scene stands down on the tabs where you are not watching it. Health bars, stats
      and the meter stay: those are still worth seeing while you re-spec. */
   .scene-away .canvaswrap { display: none; }
-  .scene-away .zoneprog { display: none; }
 
   /* ---------- the panel takes what is left and scrolls inside itself ---------- */
   /* On the Play tab the fight is the screen and the rotation is a strip beneath it --
      a third of the height, scrolling inside itself. It was a gear-optimisation panel with
      a small picture of a fight above it, which is backwards for a game you are meant to
      be watching. On the Character tab the split inverts and the panel takes everything. */
+  /* Collapses to nothing on Play, because the panel there is empty: the rotation moved
+     to Character and the log is desktop-only. The fight, the stats and the meter get the
+     whole screen, which is what a dashboard for a game you watch should be. */
   .side {
-    flex: 0 0 30%;
+    flex: 0 0 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -179,6 +190,7 @@
   }
   .scene-away .side { flex: 1 1 auto; }
   .tabs { display: none; }               /* replaced by the bottom bar */
+  #tab-play { display: none; }           /* the log is a desktop affordance */
   .panel {
     flex: 1 1 auto;
     min-height: 0;
@@ -218,8 +230,6 @@
     width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
   }
 
-  /* No transcript on a phone. The events that matter arrive as toasts and modals. */
-  .logrow { display: none; }
 
   /* A locked ability cannot be slotted, so it is not a decision -- it is seven rows of
      "not yet" between you and the three rows that are. One summary line replaces them. */
@@ -299,12 +309,14 @@
   /* A 186px card in the corner of a 375px screen is unreadable and its buttons are
      smaller than a fingertip. On a phone a drop is a full-width card at the bottom of
      the scene, above the health bars, where it covers sky rather than combatants. */
+  /* Sits just under the top of the scene. It used to land on the zone banner drawn
+     into the canvas -- two pieces of chrome in the same place, one covering the other. */
   .toasts {
-    left: 6px; right: 6px; top: 22px;
+    left: 6px; right: 6px; top: 6px;
     align-items: stretch;
   }
-  .toast { width: auto; padding: 8px 9px; }
-  .toast .tname { font-size: 12px; }
+  .toast { width: auto; padding: 6px 8px; }
+  .toast .tname { font-size: 11px; }
   .toast .tsub { font-size: 9px; }
   /* The affix list is dropped: the same item is sitting in the Loot panel a thumb away
      with its full detail, and every row this card grows is a row of the fight it hides.
@@ -343,7 +355,7 @@
 
 /* Very short phones (SE-class): give the panel its height back. */
 @media (max-width: 760px) and (max-height: 700px) {
-  .meterbar .mbrow:nth-of-type(n + 3) { display: none; }
+  .mbrow:nth-of-type(n + 4) { display: none; }
   .vital { min-width: 64px; padding: 4px 7px; }
   .bnav { min-height: 46px; }
 }

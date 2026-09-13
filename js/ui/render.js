@@ -700,22 +700,9 @@ export class Renderer {
     this.drawFloaters(ctx, dt);
     this.drawGrade(ctx, theme);
 
-    // The zone banner is chrome, not scenery, so it is pinned to the real left edge of
-    // the canvas rather than to the virtual scene -- otherwise the cover-crop that lets
-    // the fight fill a phone screen slices the first few characters off it.
-    // Chrome, not scenery: pinned to the real left edge so the cover-crop cannot slice
-    // it, and sized in SCREEN pixels so it does not shrink as the scene scales up. Drawn
-    // at 9 virtual px it came out around 6 real pixels on a phone, which is unreadable.
-    const edge = -this.offsetX / this.scale;
-    const px = (n) => (n * (this.dpr || 1)) / this.scale;   // n CSS pixels, in scene units
-    const size = px(11);
-    ctx.textAlign = 'left';
-    ctx.font = `${size.toFixed(1)}px monospace`;
-    const label = `${theme.name}  ·  Zone ${save.zone}${isBossZone(save.zone) ? '  ·  BOSS' : ''}`;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(edge + px(6), px(6), ctx.measureText(label).width + px(14), size + px(7));
-    ctx.fillStyle = '#fff';
-    ctx.fillText(label, edge + px(13), px(11) + size * 0.85);
+    // The zone banner used to be drawn here. Zone and kill progress live in the top
+    // bar now: two copies of the same line is one too many, and this one sat exactly
+    // where a loot card lands, so each covered the other.
   }
 
   /**

@@ -1,7 +1,7 @@
 // Bootstrap + game loop + UI wiring.
 
 import { CLASSES, CLASS_LIST, MAX_ACTIVE_ABILITIES } from './data/classes.js';
-import { xpToNext, MOBS_PER_ZONE, isBossZone, FINAL_ZONE, isFinalZone, MAX_LEVEL, atMaxLevel, STALL_DEATHS, STALL_DROP, MAX_LIVES } from './data/mobs.js';
+import { themeForZone, xpToNext, MOBS_PER_ZONE, isBossZone, FINAL_ZONE, isFinalZone, MAX_LEVEL, atMaxLevel, STALL_DEATHS, STALL_DROP, MAX_LIVES } from './data/mobs.js';
 import { SLOTS, AFFIXES, affixTip, scaledAffixes, enchantCost, ENCHANT_STEP, ENCHANT_MAX, repairCost, WEAR_MAX, WEAR_STEP } from './data/affixes.js';
 import { TALENTS, TALENT_UNLOCK_LEVEL, DEEP_TALENT_LEVEL, respecCost, isPetTalent, earnedTalentPoints, spentTalentPoints, trinketRanksFor } from './data/talents.js';
 import { computeStats, estimateDps, emberBonus, emberStep, isSolo, ratingToPct, pctToRating, CRIT_CAP, HASTE_CAP } from './systems/stats.js';
@@ -541,7 +541,34 @@ function updateBars() {
   renderAuras($('pAuras'), auras.player, false);
 }
 
+/**
+ * Panels are rebuilt wholesale, and renderAll() runs on every kill. A tap takes a couple
+ * of hundred milliseconds from finger-down to the click event, so a mob dying inside that
+ * window replaced the button before its click could reach it -- which on a phone read as
+ * having to press everything two or three times before anything happened.
+ *
+ * So while a finger is down, hold the rebuild. The flush is deferred a turn because click
+ * is dispatched after pointerup: rebuilding in the pointerup handler itself would destroy
+ * the button just as late as before.
+ */
+let pointerHeld = false;
+let renderHeld = false;
+
+document.addEventListener('pointerdown', () => { pointerHeld = true; }, true);
+for (const ev of ['pointerup', 'pointercancel']) {
+  document.addEventListener(ev, () => {
+    if (!pointerHeld) return;
+    pointerHeld = false;
+    setTimeout(() => {
+      if (!renderHeld) return;
+      renderHeld = false;
+      renderAll();
+    }, 0);
+  }, true);
+}
+
 function renderAll() {
+  if (pointerHeld) { renderHeld = true; return; }
   const s = game.save;
   $('charLabel').textContent = `${s.name} the ${CLASSES[s.classId].name}`;
   const lives = s.lives ?? MAX_LIVES;
@@ -581,9 +608,13 @@ function renderBadges() {
 function renderZoneProgress() {
   const s = game.save;
   const boss = isBossZone(s.zone);
-  $('zoneProgText').innerHTML = (boss
-    ? `Zone ${s.zone} — <b>Boss fight</b>`
-    : `Zone ${s.zone} — ${s.mobsKilledInZone} / ${MOBS_PER_ZONE} slain`)
+  // The biome name is flavour rather than state, so it is the first thing dropped when
+  // the row is too narrow for all of it (see the phone stylesheet).
+  $('zoneProgText').innerHTML =
+    `<span class="theme">${themeForZone(s.zone).name} ·</span> `
+    + (boss
+      ? `Zone ${s.zone} — <b>Boss fight</b>`
+      : `Zone ${s.zone} — ${s.mobsKilledInZone} / ${MOBS_PER_ZONE} slain`)
     + ` <span class="cp">⚑ checkpoint Zone ${s.checkpoint}</span>`;
   const pips = $('zonePips');
   pips.innerHTML = '';
@@ -1565,6 +1596,9 @@ function renderTalents() {
     const locked = s.level < t.req;
     const row = document.createElement('div');
     row.className = 'talent' + (locked ? ' locked' : '');
+    // Carried on the row so a tap opens it: the phone stylesheet collapses talents to one
+    // line, which left twenty buttons whose effect you could not read anywhere at all.
+    row.title = t.desc + (locked ? ` (unlocks at level ${t.req})` : '');
     row.innerHTML = `
       <div class="tinfo"><div class="tn">${t.name}</div><div class="td">${t.desc}</div></div>
       <div class="rank${bonus ? ' boosted' : ''}">${rank + bonus}/${t.max}${bonus ? ` <span class="tri">+${bonus}</span>` : ''}</div>
@@ -1654,7 +1688,11 @@ document.addEventListener('click', (ev) => {
   const hit = ev.target.closest('[title]');
   const interactive = ev.target.closest('button, input, a, label, select');
   if (!hit || interactive || !hit.title) { tip.classList.add("hidden"); return; }
-  const label = hit.querySelector('.vl')?.textContent || hit.textContent.trim().slice(0, 44) || 'Detail';
+  const label = hit.querySelector('.vl')?.textContent
+    || hit.querySelector('.tn')?.textContent
+    || hit.querySelector('.an')?.textContent
+    || hit.textContent.trim().slice(0, 44)
+    || 'Detail';
   tip.innerHTML = '<b></b><span></span>';
   tip.querySelector('b').textContent = label;
   tip.querySelector('span').textContent = hit.title;

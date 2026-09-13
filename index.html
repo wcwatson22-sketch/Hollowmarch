@@ -54,6 +54,13 @@
         <span class="lvl">Lv <b id="charLevel">1</b></span>
         <span class="lives" id="lives" title="Lives remaining. Run out and this character is gone. A boss kill gives one back."></span>
       </div>
+
+      <!-- Zone and kill progress. Lived under the scene and on the scene at once; one
+           copy, up here with the rest of the run state. -->
+      <div class="zoneline">
+        <span id="zoneProgText">0 / 10</span>
+        <div class="pips" id="zonePips"></div>
+      </div>
       <div class="bar xpbar"><div id="xpFill"></div><span id="xpText">0 / 0</span></div>
       <div class="gold">⛃ <b id="goldText">0</b></div>
       <div class="topctl">
@@ -91,11 +98,6 @@
             <div class="auras" id="eAuras"></div>
           </div>
         </div>
-        <div class="zoneprog">
-          <span id="zoneProgText">0 / 10</span>
-          <div class="pips" id="zonePips"></div>
-        </div>
-
         <!-- Always visible, so the effect of equipping something is immediate and
              doesn't require opening a panel to find. Changed values flash a delta. -->
         <div class="vitals" id="vitals"></div>
@@ -114,13 +116,14 @@
         <!-- Everything you act on mid-fight lives here, so loot and rotation
              decisions never require leaving the tab you are watching. -->
         <div class="panel" id="tab-play">
-          <div class="sec"><h4>Rotation</h4><div id="sec-abilities"></div></div>
+          <div class="sec logsec"><h4>Combat log</h4><div id="combatLog" class="log"></div></div>
         </div>
 
         <div class="panel hidden" id="tab-char">
           <div class="sec"><h4>Bags</h4><div id="sec-loot"></div></div>
           <div class="sec hidden" id="petSec"><h4>Companion</h4><div id="sec-pet"></div></div>
           <div class="sec"><h4>Equipped</h4><div id="sec-equipped"></div></div>
+          <div class="sec"><h4>Rotation</h4><div id="sec-abilities"></div></div>
           <div class="sec"><h4>Talents</h4><div id="sec-talents"></div></div>
           <div class="sec runctl">
             <h4>This run</h4>
@@ -133,10 +136,6 @@
 
       </aside>
     </main>
-
-    <section class="logrow">
-      <div id="combatLog" class="log"></div>
-    </section>
 
     <div id="awayNotice" class="awaynotice hidden">Halted — tab not visible</div>
 
