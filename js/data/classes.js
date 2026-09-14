@@ -86,7 +86,7 @@ export const CLASSES = {
     // that neither choice is a trap: soloHp covers the tank you no longer have.
     soloBonus: 0.238,
     soloHp: 0.25,
-    companion: { name: 'Wolf', color: '#8a8f98', hpMult: 0.62, apMult: 0.44, swingTime: 2.1, armorMult: 0.55 },
+    companion: { name: 'Wolf', color: '#8a8f98', hpMult: 0.82, apMult: 0.44, swingTime: 2.1, armorMult: 0.70 },
     abilities: [
       { id: 'sting', type: 'poison', name: 'Serpent Sting', unlock: 1, cd: 10, kind: 'dot', school: SCHOOL.MAGIC,
         coef: 0.30, ticks: 5, tick: 2.0, desc: 'Poisons the target for 30% AP per tick, 5 ticks.' },
@@ -199,8 +199,8 @@ export const CLASSES = {
     base: { hp: 100, ap: 0, sp: 13, armor: 10, crit: 0.030, haste: 0.010 },
     growth: { hp: 14, ap: 0, sp: 2.9, armor: 1.4, crit: 0.0009, haste: 0.0011 },
     // Chosen at level 5 instead of keeping the companion.
-    soloBonus: 0.202,
-    soloHp: 0.25,
+    soloBonus: 0.188,
+    soloHp: 0.46,
     companion: { name: 'Imp', color: '#b0453f', hpMult: 0.52, apMult: 0.46, swingTime: 1.9, armorMult: 0.45 },
     abilities: [
       { id: 'corruption', type: 'shadow', name: 'Corruption', unlock: 1, cd: 9, kind: 'dot', school: SCHOOL.MAGIC,
@@ -246,7 +246,7 @@ export const CLASSES = {
  * Scored as throughput per second of cooldown. Taking the NEWEST three would be
  * simpler but would strip a class of its identity the moment a big nuke unlocked.
  */
-export function suggestedKit(classId, level) {
+export function suggestedKit(classId, level, solo = false) {
   const value = (a) => {
     const cd = Math.max(1, a.cd || 1);
     switch (a.kind) {
@@ -255,8 +255,14 @@ export function suggestedKit(classId, level) {
       case "stun": return (a.coef + 0.5) / cd;
       case "execute": return (a.coef * 0.7 + a.executeCoef * 0.3) / cd;
       case "drain": return (a.coef * 1.15) / cd;
+      // Scaled off the companion's attack power rather than yours, and a pet carrying a
+      // pet build runs at roughly four fifths of its owner's power once Bond and the pack
+      // talents are in. Without a case here it fell to the default 0.10 and the ability
+      // added for pet builds was the one thing a pet build never picked up.
+      case "petstrike": return solo ? 0 : (a.coef * 1.0) / cd;
       case "buff":
       case "buffpet": {
+        if (solo && a.kind === "buffpet" && !a.solo) return 0;
         const uptime = Math.min(1, (a.dur || 0) / cd);
         return a.stat === "ap" ? a.amount * uptime * 0.9 : a.amount * uptime * 0.35;
       }
@@ -273,7 +279,13 @@ export function suggestedKit(classId, level) {
   // A class whose companion is doing the tanking keeps one way to keep it standing.
   // Left purely to the score, the priest drops every heal and then watches its
   // mercenary die on every pull.
-  const isSustain = (a) => a.kind === "healpet" || a.kind === "hot";
+  // healpet and hot resolve to healself and hotself for a character that went alone, so
+  // this is the solo build's only sustain as well as the pet build's. Gating it on having
+  // a companion cost solo hunters and priests every run to permadeath.
+  // A leech counts. The warlock owns no heal at all, so this guarantee found nothing for
+  // it and a solo warlock went out with three damage spells and no way to get health
+  // back -- the only build measured that ran itself out of lives.
+  const isSustain = (a) => a.kind === "healpet" || a.kind === "hot" || a.kind === "drain";
   if (CLASSES[classId].companion && !picked.some(isSustain)) {
     const heal = ranked.find(isSustain);
     if (heal && picked.length === MAX_ACTIVE_ABILITIES) picked[picked.length - 1] = heal;
@@ -283,7 +295,7 @@ export function suggestedKit(classId, level) {
 
 /** Apply suggestedKit to a save in place. Used by the balance tools. */
 export function autoSlot(save) {
-  const keep = new Set(suggestedKit(save.classId, save.level));
+  const keep = new Set(suggestedKit(save.classId, save.level, save.petChoice === 'solo'));
   for (const a of CLASSES[save.classId].abilities) save.abilityToggles[a.id] = keep.has(a.id);
   return save;
 }
