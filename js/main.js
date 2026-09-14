@@ -1,9 +1,9 @@
 // Bootstrap + game loop + UI wiring.
 
 import { CLASSES, CLASS_LIST, MAX_ACTIVE_ABILITIES } from './data/classes.js';
-import { themeForZone, xpToNext, MOBS_PER_ZONE, isBossZone, FINAL_ZONE, isFinalZone, MAX_LEVEL, atMaxLevel, STALL_DEATHS, STALL_DROP, MAX_LIVES } from './data/mobs.js';
-import { SLOTS, AFFIXES, affixTip, scaledAffixes, repairCost, WEAR_MAX, WEAR_STEP } from './data/affixes.js';
-import { TALENTS, TALENT_UNLOCK_LEVEL, DEEP_TALENT_LEVEL, respecCost, isPetTalent, earnedTalentPoints, spentTalentPoints, trinketRanksFor } from './data/talents.js';
+import { themeForZone, xpToNext, MOBS_PER_ZONE, isBossZone, isMajorBossZone, FINAL_ZONE, isFinalZone, MAX_LEVEL, atMaxLevel, STALL_DEATHS, STALL_DROP, MAX_LIVES } from './data/mobs.js';
+import { SLOTS, AFFIXES, affixTip, scaledAffixes } from './data/affixes.js';
+import { TALENTS, TALENT_UNLOCK_LEVEL, DEEP_TALENT_LEVEL, isPetTalent, earnedTalentPoints, spentTalentPoints, trinketRanksFor, tomeTargetFor } from './data/talents.js';
 import { computeStats, estimateDps, emberBonus, emberStep, EMBER_COUNT, EMBER_MAX, isSolo, ratingToPct, pctToRating, CRIT_CAP, HASTE_CAP } from './systems/stats.js';
 import {
   rollAscension, applyAscension, currentForm, nextForm, formsFor, bossChance,
@@ -23,6 +23,7 @@ const game = {
   meter: new Meter(),
   paused: false,      // player pressed Pause
   awayPaused: false,  // tab is hidden; nothing progresses while you are away
+  sheetPaused: false, // the character sheet is open; you cannot read and watch at once
   speed: 1,
   lastFrame: 0,
   lastLogic: 0,
@@ -142,7 +143,6 @@ function showMenu() {
       <span>Level <b>${existing.level}</b></span>
       <span>Zone <b>${existing.zone}</b></span>
       <span>Checkpoint <b>${existing.checkpoint}</b></span>
-      <span><b>${existing.gold}</b> gold</span>
     </div>
     <div class="scrow">
       <span>${existing.totalKills} kills</span>
@@ -297,10 +297,9 @@ function onKill() {
 
   s.totalKills++;
   s.deathStreak = 0;   // killing something proves the zone is survivable again
-  s.gold += mob.gold;
   // Break the corpse apart before the next spawn replaces it.
   if (game.renderer) game.renderer.onDeath('enemy', { name: mob.name, color: mob.color, boss: mob.boss });
-  log(`${mob.name} dies. +${mob.xp} xp, +${mob.gold} gold.`, 'good');
+  log(`${mob.name} dies. +${mob.xp} xp.`, 'good');
   const leveled = grantXp(mob.xp);
 
   const drop = rollDrop(s.classId, s.zone, mob.boss, { killIndex: s.totalKills, solo: isSolo(s) });
@@ -369,16 +368,9 @@ function onWipe() {
       : `Sent back to Zone ${s.checkpoint}.`,
     'bad'
   );
-  // Every equipped piece takes a point of wear. Repairs cost gold, so dying drains
-  // the economy that buys upgrades instead of deleting progress you already made.
-  let worn = 0;
-  for (const slot of SLOTS) {
-    const it = s.equipped[slot.id];
-    if (!it || (it.wear || 0) >= WEAR_MAX) continue;
-    it.wear = (it.wear || 0) + 1;
-    worn++;
-  }
-  if (worn > 0) log(`Your gear is battered — ${worn} piece${worn === 1 ? '' : 's'} damaged.`, 'bad');
+  // Gear used to take a point of wear on every death, repaired with gold. Both are gone:
+  // a currency whose only purpose was undoing a tax is two systems cancelling out, and
+  // each of them cost panel space that the character sheet needed more.
 
   // Dying without killing anything in between means the zone is beyond you, not that
   // you were unlucky. After a few of those the checkpoint stops being a floor and you
@@ -461,7 +453,7 @@ function step() {
   const now = performance.now();
   const raw = Math.min(0.5, (now - game.lastLogic) / 1000);
   game.lastLogic = now;
-  if (game.paused || game.awayPaused) return;
+  if (game.paused || game.awayPaused || game.sheetPaused) return;
 
   const dt = raw * game.speed;
   // Nothing advances while you are down.
@@ -522,7 +514,6 @@ function updateBars() {
   } else {
     setBar($('xpFill'), $('xpText'), s.xp, xpToNext(s.level), `${Math.floor(s.xp)} / ${xpToNext(s.level)} xp`);
   }
-  $('goldText').textContent = Math.floor(s.gold);
   $('charLevel').textContent = s.level;
 
   setBar($('pHp'), $('pHpText'), e.player.hp, e.player.maxHp);
@@ -1159,31 +1150,13 @@ function renderEquipped() {
   const eq = $('sec-equipped');
   eq.innerHTML = '';
 
-  // Repairs live here rather than in the Camp: gear gets damaged from the first death,
-  // long before the Camp unlocks at the zone-10 checkpoint.
-  const damaged = SLOTS.map((sl) => s.equipped[sl.id]).filter((it) => it && (it.wear || 0) > 0);
-  if (damaged.length) {
-    const total = damaged.reduce((sum, it) => sum + repairCost(it), 0);
-    const bar = document.createElement('div');
-    bar.className = 'repairbar';
-    bar.innerHTML = `<span>${damaged.length} damaged piece${damaged.length === 1 ? '' : 's'}</span>
-      <button ${s.gold < total ? 'disabled' : ''}>Repair all — ${total}⛃</button>`;
-    bar.querySelector('button').addEventListener('click', () => {
-      if (s.gold < total) return;
-      s.gold -= total;
-      for (const it of damaged) it.wear = 0;
-      log(`Repaired ${damaged.length} piece${damaged.length === 1 ? '' : 's'} for ${total} gold.`, 'good');
-      afterGearChange();
-    });
-    eq.appendChild(bar);
-  }
   for (const slot of SLOTS) {
     const it = s.equipped[slot.id];
     const row = document.createElement('div');
     row.className = 'slotrow';
     row.innerHTML = `<span class="sn">${slot.name}</span>
       <span class="iv">${it
-        ? `<span style="color:${it.rarityColor}">${it.name}</span>${it.talentRanks ? ` <span class="pts">+${it.talentRanks} ${it.talentName}</span>` : ''}${it.wear ? ` <span class="worn">−${Math.round(it.wear * WEAR_STEP * 100)}% worn</span>` : ''} <span class="il">i${it.ilvl}</span>`
+        ? `<span style="color:${it.rarityColor}">${it.name}</span>${it.talentRanks ? ` <span class="pts">+${it.talentRanks} ${it.talentName}</span>` : ''} <span class="il">i${it.ilvl}</span>`
         : '<span class="empty">empty</span>'}</span>`;
     if (it) {
       row.style.cursor = 'pointer';
@@ -1201,8 +1174,7 @@ function renderEquipped() {
 /** Bags, each item shown side by side with whatever occupies its slot. */
 function renderLoot() {
   const s = game.save;
-  // Gold too: the sell price on every card is read off it.
-  if (unchanged('loot', gearSig(s) + '|' + JSON.stringify(s.inventory) + '|' + s.gold)) return;
+  if (unchanged('loot', gearSig(s) + '|' + JSON.stringify(s.inventory))) return;
   const bags = $('sec-loot');
   bags.innerHTML = '';
   if (s.inventory.length === 0) {
@@ -1233,7 +1205,7 @@ function renderLoot() {
       <div class="deltas">${deltaRows(cur, it) || '<div class="delta">no stat change</div>'}</div>
       <div class="row">
         <button class="${v.cls === 'up' ? 'up' : ''}" data-act="equip">Equip</button>
-        <button data-act="sell">Sell ${sellValue(it)}⛃</button>
+        <button data-act="sell">Discard</button>
       </div>`;
     box.querySelector('[data-act="equip"]').addEventListener('click', () => {
       if (cur) s.inventory.push(cur);
@@ -1242,7 +1214,6 @@ function renderLoot() {
       afterGearChange();
     });
     box.querySelector('[data-act="sell"]').addEventListener('click', () => {
-      s.gold += sellValue(it);
       s.inventory = s.inventory.filter((x) => x.uid !== it.uid);
       afterGearChange();
     });
@@ -1250,7 +1221,6 @@ function renderLoot() {
   }
 }
 
-const sellValue = (it) => Math.round(it.ilvl * 3 + itemScore(it) * 0.4);
 
 // ---------------------------------------------------------------- loot alerts
 /**
@@ -1443,8 +1413,6 @@ const ENCOUNTER_CHANCE = 0.018;      // per ordinary kill -- deliberately rare
 const ENCOUNTER_MIN_GAP = 12;        // kills since the last one, so it cannot cluster
 const SHOP_SIZE = 3;
 
-const shopPrice = (it) => Math.round(40 * it.ilvl + itemScore(it) * 6);
-
 /** Roll for an encounter after a kill. A boss always produces one. */
 function maybeEncounter(wasBoss) {
   const s = game.save;
@@ -1455,10 +1423,11 @@ function maybeEncounter(wasBoss) {
     if (Math.random() >= ENCOUNTER_CHANCE) return false;
   }
   s.lastEncounterKill = s.totalKills;
-  // A boss always produces the enchanter. Rolling for it meant the set-piece of a zone
-  // could pay out a merchant selling things you already had; the enchant is the reward
-  // that always moves your character forward.
-  openEncounter(wasBoss ? 'enchanter' : pickEncounter());
+  // A major boss sends you to the enchanter; a minor one leaves a tome. Everything else
+  // rolls for what it finds.
+  openEncounter(wasBoss
+    ? (isMajorBossZone(s.checkpoint - 1) ? 'enchanter' : 'tome')
+    : pickEncounter());
   return true;
 }
 
@@ -1488,22 +1457,49 @@ function openEncounter(kind) {
   const finish = () => closeEncounter();
 
   if (kind === 'chest') {
-    const gold = Math.round(60 + zone * 22 * (0.7 + Math.random() * 0.8));
     const item = rollDrop(s.classId, zone + 2, true, { solo: isSolo(s) });
     $('eventTitle').textContent = 'An unclaimed chest';
     body.innerHTML = `
       <p class="note">Half-buried at the side of the trail, and whoever left it here is
         not coming back for it.</p>
       <div class="evloot">
-        <div class="evgold">+${gold} gold</div>
         ${item ? `<div class="evitem" style="color:${item.rarityColor}">${item.name}</div>
           <div class="il">${item.slotName} · i${item.ilvl} · ${item.rarity}</div>` : ''}
       </div>`;
     $('eventActions').innerHTML = '<button class="primary">Take it</button>';
     $('eventActions').firstChild.onclick = () => {
-      s.gold += gold;
       if (item) { s.inventory.push(item); log(`Chest: ${item.name} (${item.rarity}).`, 'big'); }
-      log(`You pocket ${gold} gold from the chest.`, 'good');
+      finish();
+    };
+    return;
+  }
+
+  if (kind === 'tome') {
+    // A page out of whatever the thing in the zone was keeping. Small and permanent:
+    // one rank of one talent, and it can push a talent past its normal maximum, which
+    // is what makes finding one for something you have already capped worth having.
+    const tal = tomeTargetFor(s);
+    $('eventTitle').textContent = 'A tome in the wreckage';
+    if (!tal) {
+      body.innerHTML = '<p class="note">Nothing in it you can use.</p>';
+      $('eventActions').innerHTML = '<button>Move on</button>';
+      $('eventActions').firstChild.onclick = finish;
+      return;
+    }
+    const have = (s.tomes || {})[tal.id] || 0;
+    body.innerHTML = `
+      <p class="note">Water-damaged and mostly illegible, but one passage is not.</p>
+      <div class="evloot">
+        <div class="evitem" style="color:var(--accent)">${tal.name} +1</div>
+        <div class="il">${tal.desc}${have ? ` · already +${have} from tomes` : ''}</div>
+      </div>`;
+    $('eventActions').innerHTML = '<button class="primary">Read it</button>';
+    $('eventActions').firstChild.onclick = () => {
+      s.tomes = s.tomes || {};
+      s.tomes[tal.id] = (s.tomes[tal.id] || 0) + 1;
+      log(`You study the tome: ${tal.name} +1.`, 'big');
+      invalidatePanels();
+      afterGearChange();
       finish();
     };
     return;
@@ -1515,14 +1511,13 @@ function openEncounter(kind) {
       const it = rollDrop(s.classId, zone, true, { solo: isSolo(s) });
       if (it) stock.push(it);
     }
-    $('eventTitle').textContent = 'A merchant on the road';
+    $('eventTitle').textContent = 'A pedlar on the road';
     body.innerHTML = `
       <p class="note">A cart, a lamp, and someone who would rather be anywhere else.
-        They will not be here on the way back.</p>
+        They will part with one piece, and they will not be here on the way back.</p>
       <div id="evStock"></div>`;
     const wrap = body.querySelector('#evStock');
     for (const it of stock) {
-      const price = shopPrice(it);
       const row = document.createElement('div');
       row.className = 'evrow';
       row.innerHTML = `
@@ -1531,15 +1526,13 @@ function openEncounter(kind) {
           <div class="il">${it.slotName} · i${it.ilvl} · ${it.rarity}</div>
           <div class="evaff">${scaledAffixes(it).map((a) => `<span title="${attr(affixTip(a.stat))}">${a.label}</span>`).join('')}</div>
         </div>
-        <button ${s.gold < price ? 'disabled' : ''}>${price}⛃</button>`;
-      row.querySelector('button').addEventListener('click', (ev) => {
-        if (s.gold < price) return;
-        s.gold -= price;
+        <button>Take</button>`;
+      row.querySelector('button').addEventListener('click', () => {
         s.inventory.push(it);
-        log(`Bought ${it.name} for ${price} gold.`, 'big');
-        ev.target.disabled = true;
-        ev.target.textContent = 'bought';
+        log(`The pedlar hands over ${it.name}.`, 'big');
+        invalidatePanels();
         renderAll();
+        finish();
       });
       wrap.appendChild(row);
     }
@@ -1548,8 +1541,10 @@ function openEncounter(kind) {
     return;
   }
 
-  // enchanter -- they will do two pieces and then they are done with you.
-  const ENCHANTS_OFFERED = 2;
+  // enchanter -- one piece, and only ever after a major boss. Two pieces every fifth
+  // zone promoted gear faster than the zones scaled, and a character three or four
+  // reforges in was flattening content meant to take an hour.
+  const ENCHANTS_OFFERED = 1;
   let left = ENCHANTS_OFFERED;
   // Anything not already legendary can be promoted. Scaling affixes caps out at +5 and
   // makes a piece more of what it is; a promotion changes what it is, which is what a
@@ -1558,7 +1553,7 @@ function openEncounter(kind) {
     .filter((it) => it.rarity !== 'legendary');
   $('eventTitle').textContent = 'An enchanter at the crossroads';
   body.innerHTML = `
-    <p class="note">They ask for nothing. They will reforge two pieces you are wearing,
+    <p class="note">They ask for nothing. They will reforge one piece you are wearing,
       raising each one a full rarity — every affix rebudgeted, and a new one added if the
       grade carries more.</p>
     ${worn.length === 0
@@ -1626,8 +1621,11 @@ function openEncounter(kind) {
 // ---------------------------------------------------------------- talents
 function renderTalents() {
   const s = game.save;
-  // Gold is in the signature because the respec button's disabled state turns on it.
-  if (unchanged('talents', gearSig(s) + '|' + s.gold + '|' + s.respecCount + '|' + s.petChoice)) return;
+  // Nothing here turns on anything that changes mid-fight any more. Gold used to be in
+  // this signature, and gold moved on every kill -- so the panel holding the talent
+  // buttons was torn down and rebuilt under your finger several times a minute, which is
+  // most of why a tap took three or four goes to land.
+  if (unchanged('talents', gearSig(s) + '|' + JSON.stringify(s.tomes || {}) + '|' + s.respecCount + '|' + s.petChoice)) return;
   const el = $('sec-talents');
   el.innerHTML = '';
   if (s.level < TALENT_UNLOCK_LEVEL) {
@@ -1642,7 +1640,9 @@ function renderTalents() {
 
   const addTalent = (t) => {
     const rank = s.talents[t.id] || 0;
-    const bonus = trinketRanksFor(s, t.id);
+    // Trinket grants and tome ranks both sit outside the points you spent, and both
+    // can push a talent past its maximum, so they are shown the same way.
+    const bonus = trinketRanksFor(s, t.id) + ((s.tomes || {})[t.id] || 0);
     const locked = s.level < t.req;
     const row = document.createElement('div');
     row.className = 'talent' + (locked ? ' locked' : '');
@@ -1684,17 +1684,14 @@ function renderTalents() {
   el.appendChild(dh);
   for (const t of deep) addTalent(t);
 
-  const cost = respecCost(s.respecCount);
   const btn = document.createElement('button');
   btn.className = 'primary wide';
-  btn.textContent = `Respec — ${cost}⛃`;
-  btn.disabled = s.gold < cost || Object.keys(s.talents).length === 0;
+  btn.textContent = 'Respec';
+  btn.disabled = Object.keys(s.talents).length === 0;
   btn.addEventListener('click', () => {
-    if (s.gold < cost) return;
-    s.gold -= cost;
     s.talents = {};
     s.respecCount++;
-    log(`Respecced for ${cost} gold.`, 'big');
+    log('Talents refunded.', 'big');
     afterGearChange();
   });
   el.appendChild(btn);
@@ -1714,6 +1711,12 @@ function showTab(name) {
   // talents is not a moment you need to see the fight, and 198px is the difference
   // between a panel you scroll constantly and one you can read.
   $('screen-game').classList.toggle('scene-away', name !== 'play');
+  // Reading your character sheet halts the fight. Gear and talent decisions are made
+  // against a build you are looking at, and the fight moving underneath them meant
+  // arriving back to a dead boss you never saw -- or worse, a dead character.
+  game.sheetPaused = name !== 'play';
+  if (name === 'play') { game.lastFrame = performance.now(); game.lastLogic = performance.now(); }
+  updatePauseUi();
   for (const b of document.querySelectorAll('.tab, .bnav')) b.classList.toggle('active', b.dataset.tab === name);
   // Opening a tab is what clears its unread marker.
   if (name === 'play') { $('lootBadge').classList.add('hidden'); $('lootDot').classList.add('hidden'); }
@@ -1751,8 +1754,12 @@ document.addEventListener('click', (ev) => {
 
 function updatePauseUi() {
   $('pauseBtn').textContent = game.paused ? 'Resume' : 'Pause';
-  $('pauseBtn').disabled = game.awayPaused;
-  $('awayNotice').classList.toggle('hidden', !game.awayPaused);
+  $('pauseBtn').disabled = game.awayPaused || game.sheetPaused;
+  const halted = game.awayPaused || game.sheetPaused;
+  $('awayNotice').classList.toggle('hidden', !halted);
+  $('awayNotice').textContent = game.sheetPaused
+    ? 'Paused — the fight resumes on the Play tab'
+    : 'Halted — tab not visible';
 }
 
 $('pauseBtn').addEventListener('click', () => {

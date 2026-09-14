@@ -167,7 +167,23 @@ export function resolveRanks(save) {
   if (tri && tri.talentId && tri.talentRanks) {
     out[tri.talentId] = (out[tri.talentId] || 0) + tri.talentRanks;
   }
+  // Tomes are permanent and are not refunded by a respec: they are not points you
+  // spent, they are pages you found. Like a trinket's grant they can push a talent past
+  // its normal maximum, which is the whole appeal of finding one for a talent you have
+  // already capped.
+  for (const [id, n] of Object.entries(save.tomes || {})) out[id] = (out[id] || 0) + n;
   return out;
+}
+
+/** A talent a tome can grant to this character, or null if there is nothing sensible. */
+export function tomeTargetFor(save, rng = Math.random) {
+  const pool = (TALENTS[save.classId] || []).filter((t) => {
+    if (save.petChoice === 'solo' && isPetTalent(t)) return false;
+    if (t.tier === 2 && t.ability && save.abilityToggles?.[t.ability] === false) return false;
+    return true;
+  });
+  if (!pool.length) return null;
+  return pool[Math.floor(rng() * pool.length)];
 }
 
 /** Ranks a trinket is adding to one talent, for display. */

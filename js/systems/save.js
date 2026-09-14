@@ -55,13 +55,13 @@ export function newSave(classId, name) {
     classId,
     level: 1,
     xp: 0,
-    gold: 0,
     zone: 1,
     highestZone: 1,
     // Death returns you here. Advanced only by killing a boss.
     checkpoint: 1,
     // Clickable rewards picked out of the scene, and the vendor stock.
     embers: 0,
+    tomes: {},
     // null until level 5: 'pet' keeps the companion, 'solo' trades it for power.
     petChoice: null,
     // Index into the companion's ascension ladder, and the pity counter that feeds it.
@@ -120,6 +120,10 @@ export function load() {
     if (typeof data.petForm !== 'number') data.petForm = 0;
     if (typeof data.lives !== 'number') data.lives = MAX_LIVES;
     if (typeof data.petAscendMisses !== 'number') data.petAscendMisses = 0;
+    if (!data.tomes) data.tomes = {};
+    // Gear no longer wears and nothing repairs it, so anything already damaged when the
+    // repair economy was removed would have stayed damaged for good.
+    for (const it of Object.values(data.equipped)) if (it && it.wear) it.wear = 0;
 
     // An ability added after a save was written has no entry in abilityToggles, and the
     // slot test is `!== false` -- so a new ability arrives switched ON and a character

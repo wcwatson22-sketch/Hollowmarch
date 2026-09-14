@@ -48,7 +48,7 @@
   .topbar {
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-areas: 'ident ctl' 'zone gold' 'xp xp';
+    grid-template-areas: 'ident ctl' 'zone zone' 'xp xp';
     gap: 4px 8px;
     padding: 6px 10px;
     flex: none;

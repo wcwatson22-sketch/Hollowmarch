@@ -40,6 +40,12 @@ export const isFinalZone = (zone) => zone >= FINAL_ZONE;
 // death as well as doubling the pacing.
 export const isBossZone = (zone) => zone % 5 === 0;
 
+// Every tenth is the real one. Both set a checkpoint and both are a set-piece, but only
+// a major boss sends you to the enchanter -- a full rarity on a worn piece every five
+// zones, twice over, outran the content badly enough that the final boss fell in
+// seconds. The minor ones pay a tome instead: small, permanent, and additive.
+export const isMajorBossZone = (zone) => zone % 10 === 0;
+
 // `sky2` is the horizon colour, `far`/`mid` are the two parallax bands behind the
 // action and `fg` is the silhouette layer in front of it. `weather` and `tint` drive
 // the ambient particle system and the colour grade in the renderer.
@@ -80,12 +86,11 @@ export function makeMob(zone, index) {
     if (isFinalZone(zone)) {
       return {
         name: 'The Hollow King', color: '#2a2038', boss: true, final: true, zone,
-        maxHp: Math.round(bossHp(zone) * 3.4), hp: Math.round(bossHp(zone) * 3.4),
-        ap: mobAp(zone) * 0.95,
+        maxHp: Math.round(bossHp(zone) * 11), hp: Math.round(bossHp(zone) * 11),
+        ap: mobAp(zone) * 1.85,
         armor: mobArmor(zone) * 1.7,
         swingTime: 1.8,
         xp: zoneXp(zone) * 40,
-        gold: zoneGold(zone) * 60,
       };
     }
     const [name, color] = BOSS_NAMES[(Math.floor(zone / 5) - 1) % BOSS_NAMES.length];
@@ -96,7 +101,6 @@ export function makeMob(zone, index) {
       armor: mobArmor(zone) * 1.4,
       swingTime: 2.2,
       xp: zoneXp(zone) * 12,
-      gold: zoneGold(zone) * 15,
     };
   }
 
@@ -108,7 +112,6 @@ export function makeMob(zone, index) {
     armor: mobArmor(zone),
     swingTime: 2.6,
     xp: zoneXp(zone),
-    gold: zoneGold(zone),
   };
 }
 
@@ -170,7 +173,6 @@ export const bossHp   = (z) => Math.round(mobHp(z) * 4);
 export const mobAp    = (z) => 8.6 + 3.05 * (z - 1) + 0.035 * Math.pow(Math.max(0, z - 20), 2.05);
 export const mobArmor = (z) => 6 + 3.2 * (z - 1);
 export const zoneXp   = (z) => Math.round(12 * Math.pow(1.18, z - 1));
-export const zoneGold = (z) => Math.round(4 * Math.pow(1.16, z - 1));
 
 /** XP needed to go from `level` to `level + 1`. */
 /**

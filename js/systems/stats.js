@@ -72,10 +72,10 @@ export function emberStep(count) {
 //   level 60, typical gear   -> ~56% crit, ~42% haste
 //   level 60, best-in-slot   -> ~80% crit, ~55% haste
 // 50% haste and 75%+ crit remain endgame builds, not mid-game defaults.
-export const CRIT_CAP = 0.85;
-export const HASTE_CAP = 0.62;
-const CRIT_K0 = 174, CRIT_P = 0.619;
-const HASTE_K0 = 176, HASTE_P = 0.610;
+export const CRIT_CAP = 0.72;
+export const HASTE_CAP = 0.52;
+const CRIT_K0 = 120, CRIT_P = 0.619;
+const HASTE_K0 = 92, HASTE_P = 0.610;
 const K_FOR = (cap, level) => (cap === HASTE_CAP
   ? HASTE_K0 * Math.pow(Math.max(1, level || 1), HASTE_P)
   : CRIT_K0 * Math.pow(Math.max(1, level || 1), CRIT_P));
