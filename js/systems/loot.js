@@ -176,6 +176,60 @@ export function rollDrop(classId, zone, boss, { killIndex = Infinity, solo = fal
   };
 }
 
+/**
+ * Promote an item one rarity step, in place.
+ *
+ * This is what a boss pays out. Scaling the affixes a piece already has makes it more of
+ * what it was; raising its rarity changes what it IS -- every existing affix is rebudgeted
+ * at the higher multiplier AND the piece gains a slot for a new one. A rare with three
+ * affixes becoming an epic with four is a meaningful step in a way that "+12% to each"
+ * never is, which is the point of killing the thing.
+ *
+ * Returns the new rarity, or null if the piece is already legendary.
+ */
+export function upgradeRarity(item, classId) {
+  if (!item) return null;
+  const idx = RARITIES.findIndex((r) => r.id === item.rarity);
+  if (idx < 0 || idx >= RARITIES.length - 1) return null;
+  const from = RARITIES[idx];
+  const to = RARITIES[idx + 1];
+
+  // Every affix is rebudgeted at the new rarity's multiplier.
+  const scale = to.mult / from.mult;
+  const affixes = item.affixes.map((a) => {
+    const def = AFFIXES.find((d) => d.id === a.id);
+    const value = a.value * scale;
+    return { ...a, value, label: def ? def.fmt(value) : a.label };
+  });
+
+  // ...and the piece gains an affix if the new rarity carries more. Trinkets are a single
+  // focused stat by design, so they only ever get the rescale.
+  const isTrinket = item.slot === 'trinket';
+  if (!isTrinket && affixes.length < to.affixes) {
+    const taken = new Set(affixes.map((a) => a.id));
+    const pool = AFFIXES.filter((a) => !taken.has(a.id) && !a.neckOnly)
+      .filter((a) => a.stat !== 'petPow' || item.petOk !== false);
+    if (pool.length) {
+      const def = pool[Math.floor(rng() * pool.length)];
+      const share = 0.55 * Math.pow(item.ilvl, 1.5) * SLOT_WEIGHT[item.slot === 'ring2' ? 'ring' : item.slot] * to.mult / to.affixes;
+      const value = Math.max(def.min ?? 1, share * def.per);
+      affixes.push({ id: def.id, stat: def.stat, value, label: def.fmt(value) });
+    }
+  }
+
+  item.affixes = affixes;
+  item.rarity = to.id;
+  item.rarityColor = to.color;
+  item.name = itemName(item.art, to, affixes[0].id);
+  // A promotion INTO legendary makes it a set piece with a power, like a dropped one.
+  if (to.id === 'legendary' && SETS[classId] && !item.setId) {
+    item.setId = SETS[classId].id;
+    item.setName = SETS[classId].name;
+    item.power = rollPower(rng);
+  }
+  return to;
+}
+
 /** Rough single number for comparing two items in the same slot. */
 export function itemScore(item) {
   if (!item) return 0;

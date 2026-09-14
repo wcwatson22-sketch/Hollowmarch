@@ -34,7 +34,11 @@ export const STALL_DROP = 2;   // zones lost per death once the floor gives way
 
 export const FINAL_ZONE = 100;
 export const isFinalZone = (zone) => zone >= FINAL_ZONE;
-export const isBossZone = (zone) => zone % 10 === 0;
+// Every fifth zone. At every tenth, a checkpoint was forty trash mobs apart -- losing
+// one cost most of an hour, and the set-piece the whole zone builds toward arrived twice
+// an evening. Checkpoints move with bosses (see onKill), so this halves the cost of a
+// death as well as doubling the pacing.
+export const isBossZone = (zone) => zone % 5 === 0;
 
 // `sky2` is the horizon colour, `far`/`mid` are the two parallax bands behind the
 // action and `fg` is the silhouette layer in front of it. `weather` and `tint` drive
@@ -84,7 +88,7 @@ export function makeMob(zone, index) {
         gold: zoneGold(zone) * 60,
       };
     }
-    const [name, color] = BOSS_NAMES[Math.floor((zone / 10 - 1)) % BOSS_NAMES.length];
+    const [name, color] = BOSS_NAMES[(Math.floor(zone / 5) - 1) % BOSS_NAMES.length];
     return {
       name, color, boss: true, zone,
       maxHp: bossHp(zone), hp: bossHp(zone),

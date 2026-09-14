@@ -2,14 +2,14 @@
 
 import { CLASSES, CLASS_LIST, MAX_ACTIVE_ABILITIES } from './data/classes.js';
 import { themeForZone, xpToNext, MOBS_PER_ZONE, isBossZone, FINAL_ZONE, isFinalZone, MAX_LEVEL, atMaxLevel, STALL_DEATHS, STALL_DROP, MAX_LIVES } from './data/mobs.js';
-import { SLOTS, AFFIXES, affixTip, scaledAffixes, enchantCost, ENCHANT_STEP, ENCHANT_MAX, repairCost, WEAR_MAX, WEAR_STEP } from './data/affixes.js';
+import { SLOTS, AFFIXES, affixTip, scaledAffixes, repairCost, WEAR_MAX, WEAR_STEP } from './data/affixes.js';
 import { TALENTS, TALENT_UNLOCK_LEVEL, DEEP_TALENT_LEVEL, respecCost, isPetTalent, earnedTalentPoints, spentTalentPoints, trinketRanksFor } from './data/talents.js';
-import { computeStats, estimateDps, emberBonus, emberStep, isSolo, ratingToPct, pctToRating, CRIT_CAP, HASTE_CAP } from './systems/stats.js';
+import { computeStats, estimateDps, emberBonus, emberStep, EMBER_COUNT, EMBER_MAX, isSolo, ratingToPct, pctToRating, CRIT_CAP, HASTE_CAP } from './systems/stats.js';
 import {
   rollAscension, applyAscension, currentForm, nextForm, formsFor, bossChance,
 } from './data/evolution.js';
 import { Encounter, estimateSurvival } from './systems/combat.js';
-import { rollDrop, itemScore } from './systems/loot.js';
+import { rollDrop, itemScore, upgradeRarity } from './systems/loot.js';
 import { Meter } from './systems/meter.js';
 import { newSave, save as persist, load, wipe } from './systems/save.js';
 import { Renderer, abilityColor, damageColor } from './ui/render.js';
@@ -471,8 +471,12 @@ function step() {
   if (result === 'win') onKill();
   else if (result === 'lose') onWipe();
 
-  game.emberTimer -= dt;
-  if (game.emberTimer <= 0) { spawnEmber(); scheduleEmber(); }
+  // Twenty-five and then never again: past the cap an ember is worth nothing, and a
+  // scene that keeps offering one is asking for a tap that does not pay.
+  if ((game.save.embers || 0) < EMBER_COUNT) {
+    game.emberTimer -= dt;
+    if (game.emberTimer <= 0) { spawnEmber(); scheduleEmber(); }
+  }
 
   game.saveTimer += dt;
   if (game.saveTimer > 10) { game.saveTimer = 0; persist(game.save); }
@@ -542,6 +546,31 @@ function updateBars() {
 }
 
 /**
+ * Panels are rebuilt wholesale, and renderAll() runs on every kill -- but almost none of
+ * those kills change anything a panel shows. Each one now carries a signature of exactly
+ * the state it draws from and returns early when that has not moved, so the buttons under
+ * your finger survive a mob dying somewhere else on screen.
+ *
+ * This is the real fix for taps being eaten; the pointer hold below is the backstop for
+ * the case where something genuinely did change mid-tap.
+ */
+const panelSig = {};
+function unchanged(key, sig) {
+  if (panelSig[key] === sig) return true;
+  panelSig[key] = sig;
+  return false;
+}
+/** Anything that invalidates every panel at once. */
+function invalidatePanels() {
+  for (const k of Object.keys(panelSig)) delete panelSig[k];
+}
+
+/** The gear state every panel's numbers are derived from. */
+function gearSig(s) {
+  return JSON.stringify(s.equipped) + '|' + (s.embers || 0) + '|' + s.level + '|' + JSON.stringify(s.talents);
+}
+
+/**
  * Panels are rebuilt wholesale, and renderAll() runs on every kill. A tap takes a couple
  * of hundred milliseconds from finger-down to the click event, so a mob dying inside that
  * window replaced the button before its click could reach it -- which on a phone read as
@@ -559,11 +588,13 @@ for (const ev of ['pointerup', 'pointercancel']) {
   document.addEventListener(ev, () => {
     if (!pointerHeld) return;
     pointerHeld = false;
+    // Long enough to outlast the click that follows a tap. A panel that is a third of a
+    // second stale is invisible; a button that vanishes before its click is not.
     setTimeout(() => {
       if (!renderHeld) return;
       renderHeld = false;
       renderAll();
-    }, 0);
+    }, 350);
   }, true);
 }
 
@@ -704,6 +735,7 @@ function renderMeterBar() {
 // ---------------------------------------------------------------- abilities
 function renderAbilities() {
   const s = game.save;
+  if (unchanged('abilities', gearSig(s) + '|' + JSON.stringify(s.abilityToggles) + '|' + s.petChoice)) return;
   const el = $('sec-abilities');
   el.innerHTML = '';
 
@@ -947,9 +979,9 @@ function offerPetChoice() {
 }
 
 // ---------------------------------------------------------------- embers
-// A small permanent reward for actually being at the screen. One ember is worth
-// almost nothing on its own (EMBER_BONUS, 0.01% to everything); the point is that
-// they only accrue while you're present, which is the same reason idle was removed.
+// A permanent reward for actually being at the screen: +1% to your power, health, armor
+// and companion damage each, twenty-five of them, and then they stop appearing. They
+// only accrue while you are present, which is the same reason idle progress was removed.
 const EMBER_MIN_GAP = 18, EMBER_MAX_GAP = 34, EMBER_LIFETIME = 9;
 
 function scheduleEmber() {
@@ -971,10 +1003,10 @@ function spawnEmber() {
   el.addEventListener('click', () => {
     if (taken) return;
     taken = true;
-    game.save.embers = (game.save.embers || 0) + 1;
+    game.save.embers = Math.min(EMBER_COUNT, (game.save.embers || 0) + 1);
     el.classList.add('taken');
     setTimeout(() => el.remove(), 260);
-    log(`Ember collected (${game.save.embers} total).`, 'good');
+    log(`Ember collected (${game.save.embers} / ${EMBER_COUNT}).`, 'good');
     persist(game.save);
     afterGearChange();
   });
@@ -1042,13 +1074,15 @@ function vitalsFor(save) {
   if (embers > 0) {
     const b = emberBonus(embers);
     const base = (v) => Math.round(v / (1 + b));
-    rows.push({ key: 'embers', label: `EMBERS ${embers}`, value: b, pct: true, dp: 1,
-      tip: 'A permanent +' + (b * 100).toFixed(1) + '% to your ' +
+    rows.push({ key: 'embers', label: `EMBERS ${embers}/${EMBER_COUNT}`, value: b, pct: true, dp: 1,
+      tip: 'A permanent +' + (b * 100).toFixed(0) + '% to your ' +
         (cls.primary === 'sp' ? 'Spell' : 'Attack') + ' Power, Health, Armor and companion damage' +
         ' — right now that is +' + (Math.round(st.power) - base(st.power)) + ' power, +' + (st.maxHp - base(st.maxHp)) +
         ' health and +' + (Math.round(st.armor) - base(st.armor)) + ' armor. It does NOT raise crit or haste,' +
-        ' which are capped by their own curve. Diminishing: the next ember is worth about +' +
-        (emberStep(embers) * 100).toFixed(2) + '%. Nothing accrues while you are away.' });
+        ' which are capped by their own curve. ' +
+        (embers >= EMBER_COUNT
+          ? 'All ' + EMBER_COUNT + ' collected: no more will appear.'
+          : 'Each one is +1%, ' + (EMBER_COUNT - embers) + ' left to find.') });
   }
   return rows;
 }
@@ -1121,6 +1155,7 @@ function renderVitals({ flash = true } = {}) {
 }
 function renderEquipped() {
   const s = game.save;
+  if (unchanged('equipped', gearSig(s))) return;
   const eq = $('sec-equipped');
   eq.innerHTML = '';
 
@@ -1166,6 +1201,8 @@ function renderEquipped() {
 /** Bags, each item shown side by side with whatever occupies its slot. */
 function renderLoot() {
   const s = game.save;
+  // Gold too: the sell price on every card is read off it.
+  if (unchanged('loot', gearSig(s) + '|' + JSON.stringify(s.inventory) + '|' + s.gold)) return;
   const bags = $('sec-loot');
   bags.innerHTML = '';
   if (s.inventory.length === 0) {
@@ -1384,6 +1421,7 @@ function afterGearChange() {
   game.enc.buffs = old.buffs;
 
   persist(game.save);
+  invalidatePanels();
   renderAll();
 }
 
@@ -1417,7 +1455,10 @@ function maybeEncounter(wasBoss) {
     if (Math.random() >= ENCOUNTER_CHANCE) return false;
   }
   s.lastEncounterKill = s.totalKills;
-  openEncounter(pickEncounter());
+  // A boss always produces the enchanter. Rolling for it meant the set-piece of a zone
+  // could pay out a merchant selling things you already had; the enchant is the reward
+  // that always moves your character forward.
+  openEncounter(wasBoss ? 'enchanter' : pickEncounter());
   return true;
 }
 
@@ -1510,51 +1551,58 @@ function openEncounter(kind) {
   // enchanter -- they will do two pieces and then they are done with you.
   const ENCHANTS_OFFERED = 2;
   let left = ENCHANTS_OFFERED;
-  const worn = SLOTS.map((sl) => s.equipped[sl.id]).filter(Boolean).filter((it) => (it.enchant || 0) < ENCHANT_MAX);
+  // Anything not already legendary can be promoted. Scaling affixes caps out at +5 and
+  // makes a piece more of what it is; a promotion changes what it is, which is what a
+  // boss ought to be worth.
+  const worn = SLOTS.map((sl) => s.equipped[sl.id]).filter(Boolean)
+    .filter((it) => it.rarity !== 'legendary');
   $('eventTitle').textContent = 'An enchanter at the crossroads';
   body.innerHTML = `
-    <p class="note">They ask for nothing. An enchant scales every affix the piece has, so
-      it makes the item more of what it already is — and they will do two.</p>
+    <p class="note">They ask for nothing. They will reforge two pieces you are wearing,
+      raising each one a full rarity — every affix rebudgeted, and a new one added if the
+      grade carries more.</p>
     ${worn.length === 0
-      ? '<p class="note">Nothing you are wearing can take another enchant.</p>'
+      ? '<p class="note">Nothing you are wearing can be raised any further.</p>'
       : '<div class="enchleft" id="enchLeft"></div><div id="evEnch"></div>'}`;
   if (worn.length > 0) {
     const wrap = body.querySelector('#evEnch');
     for (const it of worn) {
-      const rank = it.enchant || 0;
-      // Free. Gold is already the repair economy and the merchant's; an enchanter you
-      // happened to walk past is a piece of luck, and charging for luck makes it a shop.
-      const cost = 0;
       const row = document.createElement('div');
       row.className = 'evrow';
-      // Show the actual numbers, before and after. "Each affix +12%" is a percentage of
-      // something you cannot see -- you have to already know what is on the piece for it
-      // to mean anything, and four items deep you do not.
+      // Show the actual numbers, before and after. A percentage of something you cannot
+      // see means nothing -- you have to already know what is on the piece, and four
+      // items deep you do not. Preview on a copy so nothing is committed by looking.
+      const preview = JSON.parse(JSON.stringify(it));
+      const nextRarity = upgradeRarity(preview, s.classId);
       const now = scaledAffixes(it);
-      const next = scaledAffixes({ ...it, enchant: rank + 1 });
-      const changes = now.map((a, i) => {
-        const b = next[i];
-        if (!b) return '';
-        const fmt = (x) => AFFIXES.find((d) => d.stat === a.stat)?.fmt(x) ?? Math.round(x);
-        return `<div class="enchrow" title="${attr(affixTip(a.stat))}">
-          <span>${fmt(a.value)}</span><span class="arrow">→</span><b>${fmt(b.value)}</b></div>`;
+      const next = scaledAffixes(preview);
+      const changes = next.map((b, i) => {
+        const a = now[i];
+        const def = AFFIXES.find((d) => d.stat === b.stat);
+        const fmt = (x) => def?.fmt(x) ?? Math.round(x);
+        return `<div class="enchrow${a ? '' : ' gained'}" title="${attr(affixTip(b.stat))}">
+          <span>${a ? fmt(a.value) : 'new'}</span><span class="arrow">→</span><b>${fmt(b.value)}</b></div>`;
       }).join('');
 
       row.innerHTML = `
         <div class="ci">
-          <span style="color:${it.rarityColor}">${it.name}</span>${rank ? ` <b class="ench">+${rank}</b>` : ''}
-          <div class="il">${it.slotName}${rank ? ` · currently +${rank}` : ''}</div>
+          <span style="color:${it.rarityColor}">${it.name}</span>
+          <div class="il">${it.slotName} · ${it.rarity}
+            <span class="arrow">→</span>
+            <b style="color:${preview.rarityColor}">${nextRarity ? nextRarity.name : it.rarity}</b></div>
           <div class="enchlist">${changes}</div>
         </div>
-        <button>Enchant</button>`;
+        <button>Reforge</button>`;
       row.querySelector('button').addEventListener('click', (ev) => {
         if (left <= 0) return;
-        it.enchant = (it.enchant || 0) + 1;
+        const to = upgradeRarity(it, s.classId);
+        if (!to) return;
         left--;
-        log(`${it.name} enchanted to +${it.enchant}.`, 'big');
+        log(`${it.name} reforged to ${to.name}.`, 'big');
         ev.target.disabled = true;
         ev.target.textContent = 'done';
         updateEnchLeft();
+        invalidatePanels();
         renderAll();
       });
       wrap.appendChild(row);
@@ -1564,7 +1612,7 @@ function openEncounter(kind) {
   // decision rather than "enchant everything you can afford".
   function updateEnchLeft() {
     const el = $('enchLeft');
-    if (el) el.textContent = left + '/' + ENCHANTS_OFFERED + ' enchants remaining';
+    if (el) el.textContent = left + '/' + ENCHANTS_OFFERED + ' reforges remaining';
     if (left > 0) return;
     for (const b of document.querySelectorAll('#evEnch button')) {
       if (b.textContent !== 'done') { b.disabled = true; b.textContent = 'no more'; }
@@ -1578,6 +1626,8 @@ function openEncounter(kind) {
 // ---------------------------------------------------------------- talents
 function renderTalents() {
   const s = game.save;
+  // Gold is in the signature because the respec button's disabled state turns on it.
+  if (unchanged('talents', gearSig(s) + '|' + s.gold + '|' + s.respecCount + '|' + s.petChoice)) return;
   const el = $('sec-talents');
   el.innerHTML = '';
   if (s.level < TALENT_UNLOCK_LEVEL) {

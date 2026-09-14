@@ -294,9 +294,12 @@ button.primary.wide { background: var(--accent); color: #1a1206; border: none; }
 /* ---------- collectible embers ---------- */
 .embers { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .ember {
+  /* 44px of target around a 13px mote. It was a 16px box, which is under half Apple's
+     minimum touch target and took five or six stabs to hit on a phone; the gradient is
+     sized independently so the ember still LOOKS like a spark, not a button. */
   position: absolute; pointer-events: auto;
-  width: 16px; height: 16px; padding: 0; border: none; cursor: pointer;
-  background: radial-gradient(circle, #ffd75f 0%, #e0952f 45%, rgba(224,149,47,0) 70%);
+  width: 44px; height: 44px; padding: 0; border: none; cursor: pointer;
+  background: radial-gradient(circle 9px at center, #ffd75f 0%, #e0952f 45%, rgba(224,149,47,0) 70%);
   animation: emberPulse 1.1s ease-in-out infinite;
 }
 .ember:hover { transform: scale(1.35); }

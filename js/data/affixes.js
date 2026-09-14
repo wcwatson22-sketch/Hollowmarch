@@ -58,7 +58,7 @@ export const AFFIXES = [
     tip: 'Speeds up your auto-attacks, shortens every ability cooldown, and makes your damage-over-time effects tick faster.' },
   { id: 'abil',   name: 'Potency',      stat: 'abilityPct', per: 0.0042, min: 0.005, fmt: (v) => `+${(v * 100).toFixed(1)}% Ability Damage`,
     tip: 'Raises the damage of your direct ability hits. It does not touch your auto-attack or your damage-over-time ticks.', neckOnly: true },
-  { id: 'petpow', name: 'Bond',         stat: 'petPow', per: 0.0060, min: 0.005, fmt: (v) => `+${(v * 100).toFixed(1)}% Companion Damage`,
+  { id: 'petpow', name: 'Bond',         stat: 'petPow', per: 0.0155, min: 0.005, fmt: (v) => `+${(v * 100).toFixed(1)}% Companion Damage`,
     tip: 'Raises your companion damage. Only drops for a build that kept its companion.' },
 ];
 

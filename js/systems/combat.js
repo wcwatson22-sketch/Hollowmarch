@@ -291,6 +291,17 @@ export class Encounter {
         this.dealToEnemy(dmg, a.name, crit, 'ability', a.school, a.id);
         break;
       }
+      // The companion strikes on command, for damage scaled off ITS attack power rather
+      // than yours. A pet build had no button of its own -- it picked one pet talent and
+      // then filled the bar with the same nukes a solo build used -- so this is the
+      // ability that makes Bond and the pet talents something you press, not just own.
+      case 'petstrike': {
+        if (!this.companion || this.companion.hp <= 0) break;
+        const { dmg, crit } = this.roll(this.companion.ap * a.coef, { mult: aMult });
+        this.onEvent({ type: 'cast', id: 'pet', name: this.companion.name, school: a.school, kind: 'pet', target: 'enemy' });
+        this.dealToEnemy(dmg, a.name, crit, 'ability', a.school, a.id);
+        break;
+      }
       case 'dot': {
         if (a.burst) {
           const { dmg, crit } = this.roll(p * a.burst, { mult: aMult });
@@ -418,6 +429,7 @@ export class Encounter {
     if (a.kind === 'healself') return this.player.hp / this.player.maxHp < 0.6;
     if (a.kind === 'hotself') return this.player.hp / this.player.maxHp < 0.9;
     if (a.kind === 'buffpet' && (!this.companion || this.companion.hp <= 0)) return false;
+    if (a.kind === 'petstrike' && (!this.companion || this.companion.hp <= 0)) return false;
     return true;
   }
 
@@ -589,8 +601,11 @@ export class Encounter {
    * The fight is continuous. Your rotation should be too.
    */
   reset() {
-    this.hots = [];
-    this.buffs = [];
+    // Buffs and heals-over-time are NOT cleared. The argument above applies to them
+    // exactly as it does to cooldowns: a fourteen-second buff spent on a mob that dies
+    // in four seconds threw away ten seconds of it, which made every long buff worse the
+    // better your damage was -- precisely backwards. Durations tick in real time and
+    // carry across pulls; only dying takes them away.
     if (this.companion) this.companion.hp = this.companion.maxHp;
     this.companionReviveIn = 0;
     // Only a sip between pulls. Restoring 35% after every kill meant damage never
@@ -599,8 +614,10 @@ export class Encounter {
     this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.player.maxHp * REST_HEAL);
   }
 
-  /** Full reset after a wipe. */
+  /** Full reset after a wipe. Dying is the one thing that does take your buffs. */
   revive() {
+    this.hots = [];
+    this.buffs = [];
     this.player.hp = this.player.maxHp;
     if (this.companion) this.companion.hp = this.companion.maxHp;
     this.reset();

@@ -20,17 +20,25 @@ import { setStateFor, powersFor } from '../data/sets.js';
 // The curve reaches further than it used to because levelling now stops at 60: past the
 // cap, embers and gear are the only things still moving, so the long tail has to be
 // worth walking.
-export const EMBER_MAX = 0.45;    // asymptote: +45% to everything
-export const EMBER_SCALE = 110;   // embers to reach ~63% of the way there
+// One per cent each, twenty-five of them, and then they stop coming.
+//
+// This was a diminishing curve asymptotic to +45%, which sounds generous and felt like
+// nothing: the first ember was worth +0.41%, so collecting one moved 14 spell power to
+// 14.06 and the number on screen did not change. A reward you cannot see is not a
+// reward. Flat and small beats curved and invisible -- and a finite count means the
+// scene stops being littered with them once you have them all.
+export const EMBER_PER = 0.01;    // each ember: +1%
+export const EMBER_COUNT = 25;    // ...and there are only ever this many
+export const EMBER_MAX = EMBER_PER * EMBER_COUNT;   // +25% at the end of it
 
 /** Total multiplier bonus from embers collected. */
 export function emberBonus(count) {
-  return EMBER_MAX * (1 - Math.exp(-(count || 0) / EMBER_SCALE));
+  return Math.min(EMBER_MAX, EMBER_PER * Math.max(0, count || 0));
 }
 
-/** Kept for the vitals strip: what the NEXT ember is worth right now. */
+/** What the NEXT ember is worth right now: a flat 1%, or nothing once they are done. */
 export function emberStep(count) {
-  return emberBonus((count || 0) + 1) - emberBonus(count || 0);
+  return (count || 0) >= EMBER_COUNT ? 0 : EMBER_PER;
 }
 
 // --- rating conversion -------------------------------------------------------------
@@ -46,27 +54,40 @@ export function emberStep(count) {
 // to 60 moved crit only from 33% to 47%. Percentages were effectively decided at
 // character creation. Run tools/ratings.mjs after touching any of these three numbers.
 //
-// Fitted to these intended breakpoints, with K constant because gear item level is
-// already tied to your zone and does the level-scaling on its own:
-//   level  5, typical gear   ->  ~7% crit,  ~3% haste
-//   level 20, typical gear   -> ~19% crit,  ~9% haste
-//   level 40, best-in-slot   -> ~66% crit, ~40% haste
-//   level 60, best-in-slot   -> ~77% crit, ~52% haste
-// 50% haste and 75%+ crit are meant to be endgame builds, not mid-game defaults.
+// The divisor scales with level rather than being a constant. With a fixed K the whole
+// span from level 5 to 60 had to be carried by rating growth alone, and rating grows 38x
+// over that span -- so the early game sat at 4% crit and 1.6% haste, which is close
+// enough to zero that a crit or haste affix was never worth taking over raw power. Any
+// single exponential that makes 40 rating meaningful also pins 4600 rating to the cap.
+//
+// K = K0 * level^p lets both ends be right: a crit affix is worth something the level it
+// drops, and the percentages still climb the whole way rather than being decided at
+// character creation. (The curve this replaced was hyperbolic with K scaling by level,
+// which saturated instead -- a level 5 character sat at 32.8% crit. The exponential is
+// what makes level-scaling safe here.)
+//
+// Fitted to these breakpoints -- run tools/ratings.mjs after touching any of them:
+//   level  5, typical gear   -> ~10% crit,  ~6% haste
+//   level 20, typical gear   -> ~23% crit, ~15% haste
+//   level 60, typical gear   -> ~56% crit, ~42% haste
+//   level 60, best-in-slot   -> ~80% crit, ~55% haste
+// 50% haste and 75%+ crit remain endgame builds, not mid-game defaults.
 export const CRIT_CAP = 0.85;
 export const HASTE_CAP = 0.62;
-const CRIT_K = 3200;
-const HASTE_K = 2750;
-const K_FOR = (cap) => (cap === HASTE_CAP ? HASTE_K : CRIT_K);
+const CRIT_K0 = 174, CRIT_P = 0.619;
+const HASTE_K0 = 176, HASTE_P = 0.610;
+const K_FOR = (cap, level) => (cap === HASTE_CAP
+  ? HASTE_K0 * Math.pow(Math.max(1, level || 1), HASTE_P)
+  : CRIT_K0 * Math.pow(Math.max(1, level || 1), CRIT_P));
 
 export function ratingToPct(rating, level, cap) {
-  return cap * (1 - Math.exp(-Math.max(0, rating || 0) / K_FOR(cap)));
+  return cap * (1 - Math.exp(-Math.max(0, rating || 0) / K_FOR(cap, level)));
 }
 
 /** Rating needed for a given percentage -- used by the tooltips to say what is next. */
 export function pctToRating(pct, level, cap) {
-  const f = Math.min(0.999, Math.max(0, pct) / cap);
-  return Math.round(-K_FOR(cap) * Math.log(1 - f));
+  const frac = Math.min(0.999, Math.max(0, pct) / cap);
+  return Math.round(-K_FOR(cap, level) * Math.log(1 - frac));
 }
 /** A companion class that chose to go alone at level 5. */
 export const isSolo = (save) => save.petChoice === 'solo';
@@ -86,8 +107,9 @@ export function computeStats(save) {
     critRating: 0,
     hasteRating: 0,
     petPow: 0,
+    petHaste: 0,
     abilityPct: 0,
-    critDmg: 1.5,
+    critDmg: 1.85,
     // Share of your crit chance that applies to damage-over-time ticks. Zero until a
     // talent grants it: see the DoT crit talents in talents.js.
     dotCrit: 0,
@@ -164,6 +186,7 @@ export function computeStats(save) {
   s.atonement = m.atonement || 0;
   s.petHp = 1 + (m.petHp || 0);
   s.petArmor = 1 + (m.petArmor || 0);
+  s.petHaste = 1 + (m.petHaste || 0);
 
   // Tier-2 talents: per-ability potency / cooldown / duration overrides.
   s.abilityMods = abilityMods(save.classId, ranks);
@@ -220,7 +243,7 @@ export function computeCompanion(save, stats) {
     hp: maxHp,
     ap: stats.power * cfg.apMult * (1 + stats.petPow) * ramp * form.ap,
     armor: stats.armor * cfg.armorMult * stats.petArmor * form.armor,
-    swingTime: cfg.swingTime * form.swing,
+    swingTime: cfg.swingTime * form.swing / Math.max(0.2, stats.petHaste || 1),
   };
 }
 

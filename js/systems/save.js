@@ -120,6 +120,17 @@ export function load() {
     if (typeof data.petForm !== 'number') data.petForm = 0;
     if (typeof data.lives !== 'number') data.lives = MAX_LIVES;
     if (typeof data.petAscendMisses !== 'number') data.petAscendMisses = 0;
+
+    // An ability added after a save was written has no entry in abilityToggles, and the
+    // slot test is `!== false` -- so a new ability arrives switched ON and a character
+    // who had filled their three slots silently ends up carrying four or five. Anything
+    // unseen is explicitly off; the player opts in.
+    const known = CLASSES[data.classId];
+    if (known) {
+      for (const ab of known.abilities) {
+        if (!(ab.id in data.abilityToggles)) data.abilityToggles[ab.id] = false;
+      }
+    }
     if (migrated) save(data); // re-home it under the current key
     return data;
   } catch (e) {
