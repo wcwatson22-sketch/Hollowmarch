@@ -2,7 +2,7 @@
 // Capacitor app build can migrate it instead of wiping characters.
 
 import { SLOTS } from '../data/affixes.js';
-import { CLASSES, MAX_ACTIVE_ABILITIES } from '../data/classes.js';
+import { CLASSES, MAX_ACTIVE_ABILITIES, suggestedKit } from '../data/classes.js';
 import { rollDrop } from './loot.js';
 import { RARITIES } from '../data/affixes.js';
 import { MAX_LIVES } from '../data/mobs.js';
@@ -125,10 +125,22 @@ export function load() {
     // slot test is `!== false` -- so a new ability arrives switched ON and a character
     // who had filled their three slots silently ends up carrying four or five. Anything
     // unseen is explicitly off; the player opts in.
+    //
+    // But "unseen" and "never recorded" look identical from here, and an older save that
+    // stored nothing at all relied on `!== false` to mean EVERYTHING is on. Switching
+    // those off left a character with no abilities, standing there auto-attacking. So the
+    // result is checked afterwards: a character that ends up with nothing slotted, or
+    // more than it can carry, is given the kit the class would suggest.
     const known = CLASSES[data.classId];
     if (known) {
+      data.abilityToggles = data.abilityToggles || {};
       for (const ab of known.abilities) {
         if (!(ab.id in data.abilityToggles)) data.abilityToggles[ab.id] = false;
+      }
+      const slotted = known.abilities.filter((ab) => data.abilityToggles[ab.id] !== false);
+      if (slotted.length === 0 || slotted.length > MAX_ACTIVE_ABILITIES) {
+        const kit = new Set(suggestedKit(data.classId, data.level || 1, data.petChoice === 'solo'));
+        for (const ab of known.abilities) data.abilityToggles[ab.id] = kit.has(ab.id);
       }
     }
     if (migrated) save(data); // re-home it under the current key
