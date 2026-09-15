@@ -82,7 +82,7 @@ export const TALENTS = {
     t('venombite',   'Venomous Bite', 'Pack', 1, { petType: 'poison' }, "Your companion's bites become poison damage, scaling with your poison talents instead of physical."),
     t('thickhide',   'Thick Hide',    'Pack', 5, { petArmor: 0.14 },'+14% companion armor per rank.'),
     t('endurancetrn','Endurance Training','Pack', 5, { petHp: 0.12 }, '+12% companion health per rank.'),
-    t('frenzy',      'Frenzy',        'Pack', 5, { petHaste: 0.08 }, '+8% companion attack speed per rank. Compounds with Bond and with Kill Command.'),
+    t('frenzy',      'Frenzy',        'Pack', 5, { petHaste: 0.065 }, '+6.5% companion attack speed per rank. Compounds with Bond and with Kill Command.'),
 
     deep('m_sting',  'Improved Sting', 'Mastery', 'sting',      5, { potency: 0.15 }, 'Serpent Sting deals +15% damage per rank.'),
     deep('m_sting2', 'Lingering Venom','Mastery', 'sting',      3, { ticks: 1 },      'Serpent Sting lasts 1 additional tick per rank.'),
@@ -93,7 +93,7 @@ export const TALENTS = {
     deep('m_bwrath', 'Unleashed Fury', 'Mastery', 'bwrath',     4, { cdr: 0.10 },     "Beast's Fury cooldown -10% per rank."),
     deep('m_bestial','Primal Rage',    'Mastery', 'bestial',    4, { cdr: 0.10 },     'Bestial Wrath cooldown -10% per rank.'),
     deep('m_killcmd','Go for the Throat','Mastery','killcmd',    5, { potency: 0.16 }, 'Kill Command deals +16% damage per rank.'),
-    deepStat('m_pack', 'Alpha',          'Mastery', 5, { petPow: 0.14, petHaste: 0.05 }, 'The wolf leads: +14% companion damage and +5% companion attack speed per rank.'),
+    deepStat('m_pack', 'Alpha',          'Mastery', 5, { petPow: 0.11, petHaste: 0.04 }, 'The wolf leads: +14% companion damage and +5% companion attack speed per rank.'),
   ],
 
   // HOLY -- direct light damage and the heals that keep the mercenary standing.
@@ -115,7 +115,7 @@ export const TALENTS = {
     t('mercreach',   'Inspiring Presence','Faith', 5, { petPow: 0.15 },  '+15% mercenary damage per rank.'),
     t('wardoffaith', 'Ward of Faith',    'Faith', 5, { petArmor: 0.14 }, '+14% mercenary armor per rank.'),
     t('bulwark',     'Bulwark',          'Faith', 5, { petHp: 0.13 },    '+13% mercenary health per rank.'),
-    t('zealotry',    'Zealotry',         'Faith', 5, { petHaste: 0.075 }, '+7.5% Mercenary attack speed per rank. Compounds with Bond and with Holy Command.'),
+    t('zealotry',    'Zealotry',         'Faith', 5, { petHaste: 0.065 }, '+6.5% Mercenary attack speed per rank. Compounds with Bond and with Holy Command.'),
 
     deep('m_swp',    'Eternal Torment', 'Mastery', 'swp',        5, { potency: 0.15 }, 'Shadow Word: Pain deals +15% damage per rank.'),
     deep('m_swp2',   'Unending Pain',   'Mastery', 'swp',        3, { ticks: 1 },      'Shadow Word: Pain lasts 1 additional tick per rank.'),
@@ -125,7 +125,7 @@ export const TALENTS = {
     deep('m_renew',  'Empowered Renew', 'Mastery', 'renew',      5, { potency: 0.16 }, 'Renew heals +16% per rank.'),
     deep('m_gheal',  'Divine Providence','Mastery','gheal',      4, { cdr: 0.10 },     'Greater Heal cooldown -10% per rank.'),
     deep('m_command','Righteous Order',  'Mastery','command',    5, { potency: 0.16 }, 'Holy Command deals +16% damage per rank.'),
-    deepStat('m_faith','Sworn Blade',    'Mastery', 5, { petPow: 0.13, petHaste: 0.05 }, 'The Mercenary fights for something: +13% damage and +5% attack speed per rank.'),
+    deepStat('m_faith','Sworn Blade',    'Mastery', 5, { petPow: 0.11, petHaste: 0.04 }, 'The Mercenary fights for something: +13% damage and +5% attack speed per rank.'),
   ],
 
   // FIRE -- Immolate, Shadowburn, Soul Fire: burst and burn.
@@ -148,7 +148,7 @@ export const TALENTS = {
     t('felfire',     'Fel Fire',          'Demonology', 1, { petType: 'fire' }, "Your demon's strikes become fire damage, scaling with your fire talents instead of physical."),
     t('felstamina',  'Fel Stamina',       'Demonology', 5, { petHp: 0.13 },  '+13% demon health per rank.'),
     t('demonicaegis','Demonic Aegis',     'Demonology', 5, { petArmor: 0.14 }, '+14% demon armor per rank.'),
-    t('demonicfrenzy','Demonic Frenzy',   'Demonology', 5, { petHaste: 0.08 }, '+8% demon attack speed per rank. Compounds with Bond and with Fel Command.'),
+    t('demonicfrenzy','Demonic Frenzy',   'Demonology', 5, { petHaste: 0.065 }, '+6.5% demon attack speed per rank. Compounds with Bond and with Fel Command.'),
 
     deep('m_corr',   'Improved Corruption','Mastery', 'corruption', 5, { potency: 0.15 }, 'Corruption deals +15% damage per rank.'),
     deep('m_corr2',  'Nightfall',          'Mastery', 'corruption', 3, { ticks: 1 },      'Corruption lasts 1 additional tick per rank.'),
@@ -158,7 +158,7 @@ export const TALENTS = {
     deep('m_soulfire','Emberfall',         'Mastery', 'soulfire',   5, { potency: 0.16 }, 'Soul Fire deals +16% damage per rank.'),
     deep('m_drain',  'Soul Leech',         'Mastery', 'drain',      5, { potency: 0.16 }, 'Drain Life deals +16% damage per rank.'),
     deep('m_felcmd', 'Command Demon',      'Mastery', 'felcommand', 5, { potency: 0.16 }, 'Fel Command deals +16% damage per rank.'),
-    deepStat('m_demon','Master of Demons',  'Mastery', 5, { petPow: 0.14, petHaste: 0.05 }, 'The demon is the weapon: +14% demon damage and +5% demon attack speed per rank.'),
+    deepStat('m_demon','Master of Demons',  'Mastery', 5, { petPow: 0.11, petHaste: 0.04 }, 'The demon is the weapon: +14% demon damage and +5% demon attack speed per rank.'),
   ],
 };
 

@@ -90,7 +90,7 @@ export const CLASSES = {
     // that neither choice is a trap: soloHp covers the tank you no longer have.
     soloBonus: 0.238,
     soloHp: 0.25,
-    companion: { name: 'Wolf', color: '#8a8f98', hpMult: 0.82, apMult: 0.44, swingTime: 2.1, armorMult: 0.70 },
+    companion: { name: 'Wolf', color: '#8a8f98', hpMult: 0.82, apMult: 0.385, swingTime: 2.1, armorMult: 0.70 },
     abilities: [
       { id: 'sting', type: 'poison', name: 'Serpent Sting', unlock: 1, cd: 10, kind: 'dot', school: SCHOOL.MAGIC,
         coef: 0.30, ticks: 5, tick: 2.0, desc: 'Poisons the target for 30% AP per tick, 5 ticks.' },
@@ -150,7 +150,7 @@ export const CLASSES = {
     // Chosen at level 5 instead of keeping the companion.
     soloBonus: 0.302,
     soloHp: 0.30,
-    companion: { name: 'Mercenary', color: '#9a7b4f', hpMult: 0.85, apMult: 0.56, swingTime: 2.4, armorMult: 0.9 },
+    companion: { name: 'Mercenary', color: '#9a7b4f', hpMult: 0.85, apMult: 0.50, swingTime: 2.4, armorMult: 0.9 },
     abilities: [
       { id: 'renew', type: 'holy', name: 'Renew', unlock: 1, cd: 8, kind: 'hot',
         coef: 0.30, ticks: 5, tick: 1.5, desc: 'Heals the Mercenary for 30% SP per tick, 5 ticks.',
@@ -212,7 +212,7 @@ export const CLASSES = {
     // Chosen at level 5 instead of keeping the companion.
     soloBonus: 0.188,
     soloHp: 0.46,
-    companion: { name: 'Imp', color: '#b0453f', hpMult: 0.52, apMult: 0.46, swingTime: 1.9, armorMult: 0.45 },
+    companion: { name: 'Imp', color: '#b0453f', hpMult: 0.52, apMult: 0.405, swingTime: 1.9, armorMult: 0.45 },
     abilities: [
       { id: 'corruption', type: 'shadow', name: 'Corruption', unlock: 1, cd: 9, kind: 'dot', school: SCHOOL.MAGIC,
         coef: 0.32, ticks: 6, tick: 2.0, desc: 'Rots the target for 32% SP per tick, 6 ticks.' },

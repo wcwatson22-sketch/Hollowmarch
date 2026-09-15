@@ -731,8 +731,8 @@ function renderMeterBar() {
   const el = $("meterBar");
   if (!el) return;
   const m = game.meter;
-  const rows = m.breakdown().slice(0, 5);
-  const heals = m.healingBreakdown().slice(0, 3);
+  const rows = m.breakdown();
+  const heals = m.healingBreakdown();
   const colors = meterColors();
   const tint = (name) => colors.get(name) || "#8a90a0";
 

@@ -171,10 +171,11 @@
      against those. */
   .scene-away .meterbar { display: none; }
 
-  /* Four sources on the Play tab. Every source meant the meter grew as the build got
-     more complicated, which is exactly when the fight above it needs the room. */
-  .mbrow:nth-of-type(n + 5) { display: none; }
-  .meterbar { flex: 0 1 auto; }
+  /* Every source, scrolling inside itself. It used to hide all but the top few, which
+     on a build with six damage sources meant the meter could not answer the one question
+     it exists to answer. Capped by height rather than by row count, so it never grows
+     into the fight above it. */
+  .meterbar { flex: 0 1 auto; max-height: 34vh; overflow-y: auto; }
 
   /* The scene stands down on the tabs where you are not watching it. Health bars, stats
      and the meter stay: those are still worth seeing while you re-spec. */
@@ -362,7 +363,7 @@
 
 /* Very short phones (SE-class): give the panel its height back. */
 @media (max-width: 760px) and (max-height: 700px) {
-  .mbrow:nth-of-type(n + 4) { display: none; }
+  .meterbar { max-height: 30vh; }
   .vital { min-width: 64px; padding: 4px 7px; }
   .bnav { min-height: 46px; }
 }
