@@ -217,13 +217,22 @@ for (const id of CLASS_IDS) {
 }
 
 // Set-bonus isolation: does more of the set actually do anything?
-console.log('\nby set pieces:   win rate    median est dps');
+//
+// Win rate only. This printed a median DPS per group and it was worse than useless: the
+// groups differ by talent plan and ability plan as much as by set count, so a median over
+// twenty-eight heterogeneous builds said nothing about the set, and twice read as though
+// four pieces were WEAKER than two. Isolating a set bonus needs one character with only
+// the setId flags changed -- measured that way it is 3428 / 3677 / 4270 DPS across 0, 2
+// and 4 pieces, which is what it should be.
+console.log('');
+console.log('by set pieces:   win rate');
 for (const n of [0, 2, 4]) {
   const rs = ok.filter((r) => r.setPieces === n);
+  const wins = rs.filter((r) => r.won).length;
   console.log(
-    ('  ' + n + ' pieces').padEnd(17) +
-    (rs.filter((r) => r.won).length + '/' + rs.length).padStart(8) +
-    median(rs.map((r) => r.dps)).toFixed(0).padStart(18)
+    ("  " + n + " pieces").padEnd(17) +
+    (wins + "/" + rs.length).padStart(8) +
+    (rs.length ? ((wins / rs.length) * 100).toFixed(0) + "%" : "-").padStart(9)
   );
 }
 

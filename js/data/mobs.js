@@ -87,7 +87,7 @@ export function makeMob(zone, index) {
       return {
         name: 'The Hollow King', color: '#2a2038', boss: true, final: true, zone,
         maxHp: Math.round(bossHp(zone) * 11), hp: Math.round(bossHp(zone) * 11),
-        ap: mobAp(zone) * 1.85,
+        ap: mobAp(zone) * 1.15,
         armor: mobArmor(zone) * 1.7,
         swingTime: 1.8,
         xp: zoneXp(zone) * 40,
@@ -170,7 +170,7 @@ export const bossHp   = (z) => Math.round(mobHp(z) * 4);
 // health bar with only a sip of healing between them; at 3% a hit that is not attrition,
 // it is a formality. Difficulty had collapsed into a single question -- is your gear
 // current or not -- with nothing in between.
-export const mobAp    = (z) => 8.6 + 3.05 * (z - 1) + 0.035 * Math.pow(Math.max(0, z - 20), 2.05);
+export const mobAp    = (z) => 8.6 + 3.05 * (z - 1) + 0.16 * Math.pow(Math.max(0, z - 20), 2.05);
 export const mobArmor = (z) => 6 + 3.2 * (z - 1);
 export const zoneXp   = (z) => Math.round(12 * Math.pow(1.18, z - 1));
 
