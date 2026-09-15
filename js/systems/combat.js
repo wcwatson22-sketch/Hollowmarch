@@ -109,7 +109,8 @@ export class Encounter {
     this.cooldowns = {};
     // Internal cooldowns for legendary powers that would otherwise fire every hit.
     this.hookReady = {};
-    this.dots = [];      // on the enemy
+    this.dots = [];
+    this.fuses = [];   // planted, counting down, not yet gone off      // on the enemy
     this.hots = [];      // on the companion
     this.buffs = [];     // { target, stat, amount, remaining }
     // Base pools, so a temporary max-health buff can be applied and removed without
@@ -148,6 +149,7 @@ export class Encounter {
     this.enemySwingTimer = this.enemy.swingTime;
     this.enemyStun = 0;
     this.dots = [];
+    this.fuses = [];
     this.onEvent({ type: 'spawn', mob: this.enemy });
   }
 
@@ -303,6 +305,24 @@ export class Encounter {
         this.dealToEnemy(dmg, a.name, crit, 'ability', a.school, a.id);
         break;
       }
+      // Planted rather than thrown. Nothing happens for a few seconds, then it goes off
+      // for a great deal and leaves a small fire behind. The delay is the cost: it is the
+      // biggest single hit in the kit and it does nothing at all if the target dies first.
+      case 'fuse': {
+        this.fuses = this.fuses.filter((f) => f.id !== a.id);
+        this.fuses.push({
+          id: a.id, name: a.name, school: a.school, type: a.type,
+          remaining: a.fuse,
+          burst: p * a.coef * this.stats.abilityDmg * potency,
+          dot: a.ticks ? {
+            id: a.id + '_burn', name: a.name, school: a.school, type: a.type,
+            ticks: a.ticks, tick: a.tick,
+            amount: p * a.dotCoef * this.stats.dotDmg * this.cls.dmgMult * potency * typeMult,
+          } : null,
+        });
+        this.onEvent({ type: 'apply', label: a.name, on: 'enemy' });
+        break;
+      }
       case 'dot': {
         if (a.burst) {
           const { dmg, crit } = this.roll(p * a.burst, { mult: aMult });
@@ -443,6 +463,7 @@ export class Encounter {
     if (a.kind === 'hotself') return this.player.hp / this.player.maxHp < 0.9;
     if (a.kind === 'buffpet' && (!this.companion || this.companion.hp <= 0)) return false;
     if (a.kind === 'petstrike' && (!this.companion || this.companion.hp <= 0)) return false;
+    if (a.kind === 'fuse' && this.fuses.some((f) => f.id === a.id)) return false;
     return true;
   }
 
@@ -492,6 +513,23 @@ export class Encounter {
     }
 
     // DoTs on the enemy
+    for (const f of this.fuses) {
+      f.remaining -= dt;
+      if (f.remaining > 0) continue;
+      const { dmg, crit } = this.roll(f.burst);
+      this.dealToEnemy(mitigate(dmg, this.enemy.armor, this.enemy.zone), f.name, crit, 'ability', f.school, f.id);
+      if (f.dot) {
+        const interval = f.dot.tick / (1 + this.stats.haste + ((this.stats.hooks || {}).quicken || 0));
+        this.dots = this.dots.filter((d) => d.id !== f.dot.id);
+        this.dots.push({
+          id: f.dot.id, name: f.dot.name, school: f.dot.school, type: f.dot.type,
+          remaining: Math.max(1, Math.round((f.dot.ticks * f.dot.tick) / interval)),
+          interval, timer: interval, amount: f.dot.amount,
+        });
+      }
+    }
+    this.fuses = this.fuses.filter((f) => f.remaining > 0);
+
     for (const d of this.dots) {
       d.timer -= dt;
       while (d.timer <= 0 && d.remaining > 0) {
@@ -576,9 +614,15 @@ export class Encounter {
         // Companions crit off their owner's crit. Without this, every point of crit a
         // pet build owns is dead weight on a third of its damage, so the build falls
         // behind precisely when crit starts stacking up in the late game.
-        const { dmg, crit } = this.roll(this.companion.ap, { mult });
-        this.onEvent({ type: 'cast', id: 'pet', name: this.companion.name, school: 'phys', kind: 'pet', target: 'enemy' });
-        this.dealToEnemy(dmg, this.companion.name, crit, 'pet', 'phys', 'pet');
+        // A talent can convert what the companion deals. Physical by default; once
+        // converted it picks up the matching type-damage talents, which is the whole
+        // point -- the pet joins the build instead of sitting beside it.
+        const petType = this.stats.petType || 'physical';
+        const petSchool = petType === 'physical' || petType === 'bleed' ? 'phys' : 'magic';
+        const typeMult = this.stats.typeDmg[petType] || 1;
+        const { dmg, crit } = this.roll(this.companion.ap * typeMult, { mult });
+        this.onEvent({ type: 'cast', id: 'pet', name: this.companion.name, school: petSchool, kind: 'pet', target: 'enemy' });
+        this.dealToEnemy(dmg, this.companion.name, crit, 'pet', petSchool, 'pet');
       }
     }
 

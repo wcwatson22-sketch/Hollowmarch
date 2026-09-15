@@ -79,6 +79,7 @@ export const TALENTS = {
     t('firetrap',    'Scorched Earth','Assassin', 5, { fireDmg: 0.12 },   '+12% fire damage per rank.'),
 
     t('beastmastery','Beast Mastery', 'Pack', 5, { petPow: 0.16 },  '+16% companion damage per rank.'),
+    t('venombite',   'Venomous Bite', 'Pack', 1, { petType: 'poison' }, "Your companion's bites become poison damage, scaling with your poison talents instead of physical."),
     t('thickhide',   'Thick Hide',    'Pack', 5, { petArmor: 0.14 },'+14% companion armor per rank.'),
     t('endurancetrn','Endurance Training','Pack', 5, { petHp: 0.12 }, '+12% companion health per rank.'),
     t('frenzy',      'Frenzy',        'Pack', 5, { petHaste: 0.08 }, '+8% companion attack speed per rank. Compounds with Bond and with Kill Command.'),
@@ -86,6 +87,7 @@ export const TALENTS = {
     deep('m_sting',  'Improved Sting', 'Mastery', 'sting',      5, { potency: 0.15 }, 'Serpent Sting deals +15% damage per rank.'),
     deep('m_sting2', 'Lingering Venom','Mastery', 'sting',      3, { ticks: 1 },      'Serpent Sting lasts 1 additional tick per rank.'),
     deep('m_trap',   'Napalm',         'Mastery', 'trap',       5, { potency: 0.15 }, 'Explosive Trap deals +15% damage per rank.'),
+    deep('m_explosive','Shrapnel',      'Mastery', 'explosive',  5, { potency: 0.16 }, 'Explosive Shot deals +16% damage per rank.'),
     deep('m_aimed',  'Careful Aim',    'Mastery', 'aimed',      5, { potency: 0.15 }, 'Aimed Shot deals +15% damage per rank.'),
     deep('m_kill',   'Executioner',    'Mastery', 'killshot',   5, { potency: 0.16 }, 'Kill Shot deals +16% damage per rank.'),
     deep('m_bwrath', 'Unleashed Fury', 'Mastery', 'bwrath',     4, { cdr: 0.10 },     "Beast's Fury cooldown -10% per rank."),
@@ -109,6 +111,7 @@ export const TALENTS = {
     t('shadowweaving','Shadow Weaving','Shadow', 5, { dotDmg: 0.10 },    '+10% damage from all damage-over-time effects per rank.'),
     t('shadowform',   'Shadowform',    'Shadow', 5, { haste: 0.012 },    '+1.2% haste per rank.'),
 
+    t('blessedblade','Blessed Blade',    'Faith', 1, { petType: 'holy' }, "The Mercenary's blade becomes holy damage, scaling with your holy talents instead of physical."),
     t('mercreach',   'Inspiring Presence','Faith', 5, { petPow: 0.15 },  '+15% mercenary damage per rank.'),
     t('wardoffaith', 'Ward of Faith',    'Faith', 5, { petArmor: 0.14 }, '+14% mercenary armor per rank.'),
     t('bulwark',     'Bulwark',          'Faith', 5, { petHp: 0.13 },    '+13% mercenary health per rank.'),
@@ -142,6 +145,7 @@ export const TALENTS = {
     t('siphonlife',   'Siphon Life',  'Shadow', 5, { hpPct: 0.045 },     '+4.5% max health per rank.'),
 
     t('demonicknow', 'Demonic Knowledge', 'Demonology', 5, { petPow: 0.16 }, '+16% demon damage per rank.'),
+    t('felfire',     'Fel Fire',          'Demonology', 1, { petType: 'fire' }, "Your demon's strikes become fire damage, scaling with your fire talents instead of physical."),
     t('felstamina',  'Fel Stamina',       'Demonology', 5, { petHp: 0.13 },  '+13% demon health per rank.'),
     t('demonicaegis','Demonic Aegis',     'Demonology', 5, { petArmor: 0.14 }, '+14% demon armor per rank.'),
     t('demonicfrenzy','Demonic Frenzy',   'Demonology', 5, { petHaste: 0.08 }, '+8% demon attack speed per rank. Compounds with Bond and with Fel Command.'),
@@ -160,7 +164,7 @@ export const TALENTS = {
 
 /** Talents that only do anything for a character with a companion. */
 export const isPetTalent = (tal) =>
-  Boolean(tal.per.petPow || tal.per.petHp || tal.per.petArmor || tal.per.petHaste);
+  Boolean(tal.per.petPow || tal.per.petHp || tal.per.petArmor || tal.per.petHaste || tal.per.petType);
 
 /**
  * Ranks actually in effect: points you allocated, plus ranks granted by an equipped
@@ -206,7 +210,12 @@ export function talentMods(classId, points, { solo = false } = {}) {
     if (solo && isPetTalent(tal)) continue;      // no companion, no companion talents
     const rank = points?.[tal.id] || 0;
     if (!rank) continue;
-    for (const [k, v] of Object.entries(tal.per)) mods[k] = (mods[k] || 0) + v * rank;
+    for (const [k, v] of Object.entries(tal.per)) {
+      // Most modifiers are per-rank numbers that add up. petType names a damage school
+      // instead, so it is taken rather than accumulated.
+      if (typeof v === 'string') mods[k] = v;
+      else mods[k] = (mods[k] || 0) + v * rank;
+    }
   }
   return mods;
 }

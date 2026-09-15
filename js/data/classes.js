@@ -116,6 +116,9 @@ export const CLASSES = {
           desc: 'You deal +14% damage for 12s.' } },
       { id: 'trap', type: 'fire', name: 'Explosive Trap', unlock: 9, cd: 13, kind: 'dot', school: SCHOOL.MAGIC,
         coef: 0.42, ticks: 4, tick: 2.0, burst: 0.6, desc: 'Bursts for 60% AP, then burns for 42% per tick.' },
+      { id: 'explosive', type: 'fire', name: 'Explosive Shot', unlock: 14, cd: 16, kind: 'fuse', school: SCHOOL.MAGIC,
+        fuse: 3, coef: 3.2, dotCoef: 0.30, ticks: 4, tick: 2.0,
+        desc: 'Lodges a charge. Three seconds later it detonates for 320% AP and leaves the wound burning for 30% per tick.' },
       { id: 'concussive', type: 'physical', name: 'Concussive Shot', unlock: 11, cd: 13, kind: 'stun', school: SCHOOL.PHYS,
         coef: 0.9, stun: 2.5, desc: 'Damage plus a 2.5s stun.' },
       { id: 'killshot', type: 'physical', name: 'Kill Shot', unlock: 14, cd: 9, kind: 'execute', school: SCHOOL.PHYS,
@@ -268,6 +271,9 @@ export function suggestedKit(classId, level, solo = false) {
       // talents are in. Without a case here it fell to the default 0.10 and the ability
       // added for pet builds was the one thing a pet build never picked up.
       case "petstrike": return solo ? 0 : (a.coef * 1.0) / cd;
+      // Discounted for the delay: three seconds of nothing is three seconds a dying mob
+      // can deny it entirely, so its throughput on paper overstates it in a fight.
+      case "fuse": return ((a.coef + (a.dotCoef || 0) * (a.ticks || 0)) * 0.7) / cd;
       case "buff":
       case "buffpet": {
         if (solo && a.kind === "buffpet" && !a.solo) return 0;

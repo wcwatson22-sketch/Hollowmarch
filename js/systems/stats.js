@@ -110,6 +110,7 @@ export function computeStats(save) {
     hasteRating: 0,
     petPow: 0,
     petHaste: 0,
+    petType: '',
     abilityPct: 0,
     critDmg: 1.85,
     // Share of your crit chance that applies to damage-over-time ticks. Zero until a
@@ -196,6 +197,8 @@ export function computeStats(save) {
   // punish you -- which is what Bloodbound did to the final boss before it was gated.
   s.leech = Math.min(LEECH_CAP, m.leech || 0);
   s.autoDot = m.autoDot || 0;
+  // Named rather than summed: a talent converts the companion's damage school.
+  s.petType = m.petType || '';
 
   // Tier-2 talents: per-ability potency / cooldown / duration overrides.
   s.abilityMods = abilityMods(save.classId, ranks);
@@ -268,6 +271,73 @@ export function computeCompanion(save, stats) {
  * It is an estimate, not a simulation -- no cooldown collisions, no execute phases --
  * but it is the right SHAPE, which is all a comparison needs.
  */
+/**
+ * What an ability will actually do for this character, in numbers rather than
+ * coefficients: total damage, how long it takes, and how it breaks down.
+ *
+ * Every figure here moves with power, talents, gear, damage-type bonuses and haste --
+ * which is the point. A description that reads the same at level 5 and level 60 is not
+ * telling you anything about your character.
+ */
+export function abilityPreview(save, base) {
+  const st = computeStats(save);
+  const cls = CLASSES[save.classId];
+  const a = base.solo && isSolo(save) ? { ...base, ...base.solo } : base;
+  const mods = st.abilityMods[base.id] || {};
+  const potency = 1 + (mods.potency || 0);
+  const typeMult = st.typeDmg[a.type] || 1;
+  const p = st.power * typeMult * potency;
+  const critMult = 1 + st.crit * (st.critDmg - 1);
+  const dotCritMult = 1 + st.crit * st.dotCrit * (st.critDmg - 1);
+  const quicken = (st.hooks || {}).quicken || 0;
+  const hasteMult = 1 + st.haste + quicken;
+  const round = (n) => Math.max(1, Math.round(n));
+
+  const out = { kind: a.kind, direct: 0, overTime: 0, seconds: 0, ticks: 0, total: 0,
+    cooldown: Math.max(1, (a.cd || 0) * (1 - Math.min(0.6, mods.cdr || 0)) / hasteMult) };
+
+  const dot = (coef, baseTicks, tick) => {
+    const duration = baseTicks * tick;
+    const ticks = Math.max(1, Math.round(duration / (tick / hasteMult)));
+    out.ticks = ticks;
+    out.seconds = duration;
+    out.overTime = round(p * coef * st.dotDmg * cls.dmgMult * dotCritMult * ticks);
+  };
+
+  switch (a.kind) {
+    case 'nuke': case 'stun': case 'drain':
+      out.direct = round(p * a.coef * st.abilityDmg * critMult * cls.dmgMult); break;
+    case 'execute':
+      out.direct = round(p * a.coef * st.abilityDmg * critMult * cls.dmgMult); break;
+    case 'petstrike': {
+      const comp = computeCompanion(save, st);
+      out.direct = comp ? round(comp.ap * a.coef * st.abilityDmg * critMult * cls.dmgMult) : 0;
+      break;
+    }
+    case 'fuse':
+      out.direct = round(p * a.coef * st.abilityDmg * critMult * cls.dmgMult);
+      out.delay = a.fuse;
+      if (a.ticks) dot(a.dotCoef || 0, a.ticks, a.tick);
+      break;
+    case 'dot':
+      if (a.burst) out.direct = round(p * a.burst * st.abilityDmg * critMult * cls.dmgMult);
+      dot(a.coef, (a.ticks || 0) + (mods.ticks || 0), a.tick);
+      break;
+    case 'healpet': case 'healself':
+      out.heal = round(st.power * a.coef * st.healPow); break;
+    case 'hot': case 'hotself': {
+      const duration = (a.ticks + (mods.ticks || 0)) * a.tick;
+      const ticks = Math.max(1, Math.round(duration / (a.tick / hasteMult)));
+      out.heal = round(st.power * a.coef * st.healPow * ticks);
+      out.seconds = duration; out.ticks = ticks;
+      break;
+    }
+    default: break;
+  }
+  out.total = out.direct + out.overTime;
+  return out;
+}
+
 export function estimateDps(save) {
   const st = computeStats(save);
   const cls = CLASSES[save.classId];
@@ -300,6 +370,14 @@ export function estimateDps(save) {
       case 'execute':
         // Weighted toward the ordinary hit: most of a fight is not the execute window.
         dps += (p * (a.coef * 0.75 + a.executeCoef * 0.25) * st.abilityDmg * critMult) / cd; break;
+      case 'fuse': {
+        // The detonation is a direct hit and the burn that follows is a damage-over-time
+        // effect, so it is priced as both, over the cooldown it actually occupies.
+        const ticks = (a.ticks || 0) * (1 + st.haste);
+        dps += (p * a.coef * st.abilityDmg * critMult
+              + p * (a.dotCoef || 0) * ticks * st.dotDmg * dotCritMult) / cd;
+        break;
+      }
       case 'dot': {
         const burst = a.burst ? p * a.burst * st.abilityDmg * critMult : 0;
         // Haste holds the duration and fits more ticks inside it (see the dot case in
@@ -317,7 +395,7 @@ export function estimateDps(save) {
 
   // The companion, if there is one.
   const comp = computeCompanion(save, st);
-  if (comp) dps += (comp.ap * critMult) / Math.max(0.1, comp.swingTime);
+  if (comp) dps += (comp.ap * critMult * (st.typeDmg[st.petType || 'physical'] || 1)) / Math.max(0.1, comp.swingTime);
 
   return dps * cls.dmgMult;
 }

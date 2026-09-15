@@ -4,7 +4,7 @@ import { CLASSES, CLASS_LIST, MAX_ACTIVE_ABILITIES } from './data/classes.js';
 import { themeForZone, xpToNext, MOBS_PER_ZONE, isBossZone, isMajorBossZone, FINAL_ZONE, isFinalZone, MAX_LEVEL, atMaxLevel, STALL_DEATHS, STALL_DROP, MAX_LIVES } from './data/mobs.js';
 import { SLOTS, AFFIXES, affixTip, scaledAffixes } from './data/affixes.js';
 import { TALENTS, TALENT_UNLOCK_LEVEL, DEEP_TALENT_LEVEL, isPetTalent, earnedTalentPoints, spentTalentPoints, trinketRanksFor, tomeTargetFor } from './data/talents.js';
-import { computeStats, estimateDps, emberBonus, emberStep, EMBER_COUNT, EMBER_MAX, isSolo, ratingToPct, pctToRating, CRIT_CAP, HASTE_CAP } from './systems/stats.js';
+import { computeStats, estimateDps, abilityPreview, emberBonus, emberStep, EMBER_COUNT, EMBER_MAX, isSolo, ratingToPct, pctToRating, CRIT_CAP, HASTE_CAP } from './systems/stats.js';
 import {
   rollAscension, applyAscension, currentForm, nextForm, formsFor, bossChance,
 } from './data/evolution.js';
@@ -741,6 +741,32 @@ function renderAbilities() {
   // An ability that only acts on a companion, and has no variant for going without one,
   // is not a choice for a solo character -- it is a row that does nothing.
   const petOnly = (b) => ['healpet', 'buffpet', 'petstrike'].includes(b.kind) && !b.solo;
+
+  /**
+   * What the ability does, in this character's numbers.
+   *
+   * The coefficients it used to print ("34% AP per tick, 5 ticks") describe the ability
+   * rather than what it will do, so they read identically at level 5 and level 60 and
+   * cannot be compared against anything. These move with power, talents, gear, damage
+   * type and haste -- so taking a bleed talent visibly changes the bleed.
+   */
+  const numbers = (base) => {
+    const p = abilityPreview(s, base);
+    const n = (v) => Math.round(v).toLocaleString();
+    const parts = [];
+    if (p.delay) parts.push(`After ${p.delay}s, hits for <b>${n(p.direct)}</b>`);
+    else if (p.direct) parts.push(`Hits for <b>${n(p.direct)}</b>`);
+    if (p.overTime) {
+      parts.push(`${parts.length ? 'then ' : 'Deals '}<b>${n(p.overTime)}</b> over ${Math.round(p.seconds)}s`
+        + ` (${p.ticks} ticks)`);
+    }
+    if (p.heal) {
+      parts.push(p.seconds ? `Heals <b>${n(p.heal)}</b> over ${Math.round(p.seconds)}s`
+                           : `Heals <b>${n(p.heal)}</b>`);
+    }
+    if (!parts.length) return '';
+    return parts.join(', ') + (p.cooldown > 1 ? ` · every ${p.cooldown.toFixed(1)}s` : '');
+  };
   for (const base of CLASSES[s.classId].abilities) {
     if (isSolo(s) && petOnly(base)) continue;
     const a = resolveAbility(base);
@@ -752,13 +778,13 @@ function renderAbilities() {
     row.className = 'ability' + (locked ? ' locked' : on ? '' : ' off');
     // Carried on the row so a tap opens the full text on a phone, where the visible
     // description is clamped to one line.
-    row.title = `${petText(a.desc)}${a.cd ? ` (${a.cd}s cooldown)` : ''}`;
+    row.title = `${petText(a.desc)}${a.cd ? ` (${a.cd}s base cooldown)` : ''}`;
     row.innerHTML = `
       <input type="checkbox" ${on ? 'checked' : ''} ${locked || blocked ? 'disabled' : ''}>
       <div>
         <div class="an">${a.name} ${locked ? `<span class="cd">— unlocks at Lv ${a.unlock}</span>`
           : blocked ? '<span class="cd">— no free slot</span>' : ''}</div>
-        <div class="ad">${petText(a.desc)}</div>
+        <div class="ad">${numbers(base) || petText(a.desc)}</div>
         ${a.cd ? `<div class="cd">${a.cd}s cooldown</div>` : ''}
       </div>`;
     row.querySelector('input').addEventListener('change', (ev) => {
