@@ -19,6 +19,9 @@
       <h1>HOLLOWMARCH</h1>
       <p class="tagline">Nine zones, then whatever is waiting at the tenth.</p>
       <div id="saveCard" class="savecard hidden"></div>
+      <!-- Everyone who finished, and how far they got. The only thing that outlives a
+           character, alongside the ascension bonus it earns. -->
+      <div id="hall" class="hall hidden"></div>
       <div class="menu-actions">
         <button id="menuContinue" class="primary hidden">Continue</button>
         <button id="menuNew" class="primary">New Character</button>
@@ -121,6 +124,7 @@
         <div class="panel hidden" id="tab-char">
           <div class="sec"><h4>Bags</h4><div id="sec-loot"></div></div>
           <div class="sec hidden" id="petSec"><h4>Companion</h4><div id="sec-pet"></div></div>
+          <div class="sec hidden" id="setSec"><h4>Set</h4><div id="sec-set"></div></div>
           <div class="sec"><h4>Equipped</h4><div id="sec-equipped"></div></div>
           <div class="sec"><h4>Rotation</h4><div id="sec-abilities"></div></div>
           <div class="sec"><h4>Talents</h4><div id="sec-talents"></div></div>
@@ -137,6 +141,10 @@
     </main>
 
     <div id="awayNotice" class="awaynotice hidden">Halted — tab not visible</div>
+
+    <!-- Tap-to-read tooltip target; see css/mobile.css. Inside the game screen, so it
+         cannot appear over a menu. -->
+    <div id="tipTap" class="tiptap hidden"></div>
 
     <!-- Phone navigation. Hidden on wide screens, where the tab strip is enough. -->
     <nav class="bottomnav" id="bottomNav">
@@ -177,8 +185,6 @@
     </div>
   </div>
 
-  <!-- Tap-to-read tooltip target; see css/mobile.css. -->
-  <div id="tipTap" class="tiptap hidden"></div>
 
   <script type="module" src="js/main.js"></script>
 </body>

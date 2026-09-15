@@ -62,6 +62,9 @@ export function newSave(classId, name) {
     // Clickable rewards picked out of the scene, and the vendor stock.
     embers: 0,
     tomes: {},
+    // Snapshotted at creation so a later win cannot retroactively buff a living
+    // character -- the bonus is what you had EARNED when you rolled them.
+    ascension: ascensionBonus(),
     // null until level 5: 'pet' keeps the companion, 'solo' trades it for power.
     petChoice: null,
     // Index into the companion's ascension ladder, and the pity counter that feeds it.
@@ -153,6 +156,66 @@ export function load() {
     console.warn('Load failed', e);
     return null;
   }
+}
+
+// ---------------------------------------------------------------- the account
+//
+// Everything above belongs to ONE character and is destroyed with it. This does not: it
+// is the only thing in the game that survives permadeath, which is what makes finishing
+// a run mean something after the run is over. Power handed out at the end of a march has
+// nothing left to spend itself on; this reaches forward into the next character instead.
+const ACCOUNT_KEY = 'hollowmarch.account.v1';
+
+export const ASCENSION_PER_WIN = 0.05;   // +5% to power, health, armor and companion
+export const ASCENSION_MAX = 0.25;       // ...up to five wins
+export const MAX_RECORDS = 8;
+
+/** Permanent, cross-character progress. Never wiped by death. */
+export function loadAccount() {
+  try {
+    const raw = localStorage.getItem(ACCOUNT_KEY);
+    const data = raw ? JSON.parse(raw) : null;
+    return {
+      wins: data?.wins || 0,
+      records: Array.isArray(data?.records) ? data.records : [],
+    };
+  } catch (e) {
+    console.warn('Account load failed', e);
+    return { wins: 0, records: [] };
+  }
+}
+
+export function saveAccount(account) {
+  try { localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account)); } catch (e) { /* full or blocked */ }
+}
+
+/** What every new character starts with, earned by the ones before it. */
+export function ascensionBonus(account = loadAccount()) {
+  return Math.min(ASCENSION_MAX, (account.wins || 0) * ASCENSION_PER_WIN);
+}
+
+/**
+ * Write a finished character into the hall. Called when a run ENDS -- out of lives, or
+ * the Hollow King down -- and never while one is still going, so the list is a record of
+ * outcomes rather than a leaderboard of works in progress.
+ */
+export function recordRun(save, { won = false } = {}) {
+  const account = loadAccount();
+  if (won) account.wins = (account.wins || 0) + 1;
+  account.records.push({
+    name: save.name,
+    classId: save.classId,
+    zone: save.zone,
+    level: save.level,
+    kills: save.totalKills || 0,
+    won,
+    at: Date.now(),
+  });
+  // Deepest first, and only the ones worth remembering.
+  account.records.sort((a, b) => (b.won - a.won) || (b.zone - a.zone) || (b.level - a.level));
+  account.records = account.records.slice(0, MAX_RECORDS);
+  saveAccount(account);
+  return account;
 }
 
 export function wipe() {

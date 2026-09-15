@@ -209,8 +209,12 @@ export function computeStats(save) {
   // conversion curve and pushed a capped character to 84-85% crit -- the hard cap --
   // when the gear curve alone was fitted to reach 75%. Embers make you bigger; they do
   // not raise the ceiling on your percentages.
-  for (const k of ['ap', 'sp', 'armor', 'petPow']) s[k] *= ember;
-  s.hp *= ember;
+  // Earned by the characters before this one. Deliberately on the same stats as embers
+  // and deliberately NOT on crit or haste rating, for the same reason: it makes you
+  // bigger, it does not raise the ceiling on your percentages.
+  const ascend = 1 + (save.ascension || 0);
+  for (const k of ['ap', 'sp', 'armor', 'petPow']) s[k] *= ember * ascend;
+  s.hp *= ember * ascend;
 
   // Per-class survivability knob, solved by tools/tune.mjs alongside dmgMult.
   s.hp *= cls.defMult;

@@ -3,6 +3,7 @@
 import { CLASSES, CLASS_LIST, MAX_ACTIVE_ABILITIES } from './data/classes.js';
 import { themeForZone, xpToNext, MOBS_PER_ZONE, isBossZone, isMajorBossZone, FINAL_ZONE, isFinalZone, MAX_LEVEL, atMaxLevel, STALL_DEATHS, STALL_DROP, MAX_LIVES } from './data/mobs.js';
 import { SLOTS, AFFIXES, affixTip, scaledAffixes } from './data/affixes.js';
+import { setStateFor } from './data/sets.js';
 import { TALENTS, TALENT_UNLOCK_LEVEL, DEEP_TALENT_LEVEL, isPetTalent, earnedTalentPoints, spentTalentPoints, trinketRanksFor, tomeTargetFor } from './data/talents.js';
 import { computeStats, estimateDps, abilityPreview, emberBonus, emberStep, EMBER_COUNT, EMBER_MAX, isSolo, ratingToPct, pctToRating, CRIT_CAP, HASTE_CAP } from './systems/stats.js';
 import {
@@ -11,7 +12,7 @@ import {
 import { Encounter, estimateSurvival } from './systems/combat.js';
 import { rollDrop, itemScore, upgradeRarity } from './systems/loot.js';
 import { Meter } from './systems/meter.js';
-import { newSave, save as persist, load, wipe } from './systems/save.js';
+import { newSave, save as persist, load, wipe, loadAccount, recordRun, ascensionBonus, ASCENSION_PER_WIN, ASCENSION_MAX } from './systems/save.js';
 import { Renderer, abilityColor, damageColor } from './ui/render.js';
 
 const $ = (id) => document.getElementById(id);
@@ -122,6 +123,7 @@ function showScreen(id) {
  * was to destroy the old one first.
  */
 function showMenu() {
+  renderHall();
   game.running = false;
   clearInterval(game.logicTimer);
   game.logicTimer = null;
@@ -149,6 +151,48 @@ function showMenu() {
       ${forms.length && form ? `<span>${form.name}${(existing.petForm || 0) > 0 ? ` (form ${existing.petForm + 1}/${forms.length})` : ''}</span>` : ''}
       ${existing.petChoice === 'solo' ? '<span>going alone</span>' : ''}
     </div>`;
+}
+
+/**
+ * Everyone who finished, and what the account has earned from them.
+ *
+ * A reward handed out at the end of a run has nothing left to apply to, so what winning
+ * pays is a permanent bonus to every character AFTER this one, plus a line in here. The
+ * list is outcomes only -- a character still walking around is not in it.
+ */
+function renderHall() {
+  const el = $('hall');
+  if (!el) return;
+  const account = loadAccount();
+  const bonus = ascensionBonus(account);
+  if (!account.records.length) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+
+  const rows = account.records.map((r) => {
+    const cls = CLASSES[r.classId];
+    return `<div class="hrow${r.won ? ' won' : ''}">
+      <span class="hn">${attr(r.name)}</span>
+      <span class="hc">${cls ? cls.name : r.classId}</span>
+      <span class="hz">${r.won ? 'finished the march' : `fell in Zone ${r.zone}`}</span>
+      <span class="hl">lv ${r.level}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="hhead">
+      <span>The hall</span>
+      ${account.wins
+        ? `<b>Ascension +${Math.round(bonus * 100)}%</b>`
+        : '<span class="dim">no one has finished yet</span>'}
+    </div>
+    ${rows}
+    ${account.wins
+      ? `<p class="note">Every character you roll from here starts ${Math.round(bonus * 100)}% stronger:
+          power, health, armor and companion damage. ${bonus >= ASCENSION_MAX
+            ? 'This is the most it goes.'
+            : `Each further win adds ${Math.round(ASCENSION_PER_WIN * 100)}%, up to ${Math.round(ASCENSION_MAX * 100)}%.`}</p>`
+      : `<p class="note">Put down the Hollow King and every character after this one starts
+          ${Math.round(ASCENSION_PER_WIN * 100)}% stronger, permanently.</p>`}`;
 }
 
 /** Save and step out of the fight. Nothing is lost; the character is on disk. */
@@ -323,8 +367,12 @@ function onKill() {
 
   // The end of the march.
   if (mob.final) {
+    const firstWin = !s.completed;
     s.completed = true;
     s.completedAt = s.completedAt || Date.now();
+    // Banked the moment the King goes down rather than when the character eventually
+    // dies: a run you won should pay out even if you keep playing and fall over after.
+    if (firstWin) recordRun(s, { won: true });
     log('The Hollow King falls.', 'big');
     log(`Zone ${FINAL_ZONE} is the end of the road. You can keep going, but nothing is waiting.`, 'good');
     showVictory();
@@ -414,6 +462,9 @@ function runOver() {
     `<b>${s.name} the ${CLASSES[s.classId].name}</b> fell in Zone ${s.zone} at level ${s.level},
      after ${s.totalKills} kills${s.checkpoint > 1 ? ` and ${s.checkpoint - 1} zones banked` : ''}.
      ${s.completed ? 'The Hollow King was already down — the march was finished.' : ''}`;
+  // Into the hall before the character is destroyed. This is the only thing that
+  // outlives it.
+  recordRun(s, { won: Boolean(s.completed) });
   $('deadModal').classList.remove('hidden');
 
   // Drop the character FIRST, so nothing can persist it back over the wipe.
@@ -607,6 +658,7 @@ function renderAll() {
   renderAbilities();
   renderLoot();
   renderPet();
+  renderSet();
   renderEquipped();
   renderTalents();
   renderVitals();
@@ -1174,6 +1226,43 @@ function renderVitals({ flash = true } = {}) {
     el.querySelectorAll(".changed").forEach((n) => n.classList.remove("changed"));
   }, 4000);
 }
+/**
+ * What the set is doing, and what it would do with one more piece.
+ *
+ * The bonuses have been live since legendaries existed and were never shown anywhere --
+ * not on the items, not on the sheet -- so a player wearing three pieces had no way to
+ * know a fourth was worth chasing, or that the first two had already done something.
+ */
+function renderSet() {
+  const s = game.save;
+  if (unchanged('set', gearSig(s))) return;
+  const el = $('sec-set');
+  const sec = $('setSec');
+  const state = setStateFor(s);
+  if (!state.set || state.count === 0) { sec.classList.add('hidden'); return; }
+  sec.classList.remove('hidden');
+
+  const tier = (pieces, desc) => {
+    const on = state.count >= pieces;
+    return `<div class="setrow${on ? ' on' : ''}">
+      <span class="sp">${pieces} pc</span>
+      <span class="sd">${desc}</span>
+    </div>`;
+  };
+
+  el.innerHTML = `
+    <div class="sethead">
+      <span class="setname">${state.set.name}</span>
+      <b>${state.count} / 4</b>
+    </div>
+    ${tier(2, state.set.desc2)}
+    ${tier(4, state.set.desc4)}
+    ${state.count < 4
+      ? `<p class="note">${4 - state.count} more piece${state.count === 3 ? '' : 's'} to finish it.
+         Set pieces are legendaries, and a reforge can promote one into the set.</p>`
+      : ''}`;
+}
+
 function renderEquipped() {
   const s = game.save;
   if (unchanged('equipped', gearSig(s))) return;
@@ -1186,7 +1275,7 @@ function renderEquipped() {
     row.className = 'slotrow';
     row.innerHTML = `<span class="sn">${slot.name}</span>
       <span class="iv">${it
-        ? `<span style="color:${it.rarityColor}">${it.name}</span>${it.talentRanks ? ` <span class="pts">+${it.talentRanks} ${it.talentName}</span>` : ''} <span class="il">i${it.ilvl}</span>`
+        ? `<span style="color:${it.rarityColor}">${it.name}</span>${it.setName ? ` <span class="setpip" title="Part of the ${attr(it.setName)} set">${it.setName}</span>` : ''}${it.talentRanks ? ` <span class="pts">+${it.talentRanks} ${it.talentName}</span>` : ''} <span class="il">i${it.ilvl}</span>`
         : '<span class="empty">empty</span>'}</span>`;
     if (it) {
       row.style.cursor = 'pointer';
@@ -1225,7 +1314,7 @@ function renderLoot() {
     box.className = 'compare';
     box.innerHTML = `
       <div class="cmphead">
-        <span class="iname" style="color:${it.rarityColor}">${it.name}</span>
+        <span class="iname" style="color:${it.rarityColor}">${it.name}</span>${it.setName ? `<span class="setpip" title="Part of the ${attr(it.setName)} set">${it.setName}</span>` : ''}
         <span class="verdicts">
           <span class="verdict ${v.dpsCls}" title="${attr('Estimated change to your damage per second, with the three abilities you have slotted, your talents and your companion.')}">${v.dpsText}</span>
           <span class="verdict ${v.ehpCls}" title="${attr('Estimated change to how long you survive sustained damage in this zone — your health, your armour and what your companion absorbs.')}">${v.ehpText}</span>
@@ -1769,7 +1858,9 @@ for (const btn of document.querySelectorAll('.tab, .bnav')) {
 let tipTimer = 0;
 document.addEventListener('click', (ev) => {
   const tip = $('tipTap');
-  if (!tip) return;
+  // Only during a live session: outside one there is no character for any of these
+  // numbers to be about.
+  if (!tip || !game.save || $('screen-game').classList.contains('hidden')) return;
   const hit = ev.target.closest('[title]');
   const interactive = ev.target.closest('button, input, a, label, select');
   if (!hit || interactive || !hit.title) { tip.classList.add("hidden"); return; }
