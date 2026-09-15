@@ -689,7 +689,7 @@ function renderMeterBar() {
       '<span class="mbbig">' + m.liveDps.toFixed(1) + '</span><span class="mblbl">DPS</span>' +
       '<span class="mbstat"><b>' + m.dps.toFixed(1) + '</b> overall</span>' +
       '<span class="mbstat"><b>' + Math.round(m.totalDamage).toLocaleString() + '</b> total damage</span>' +
-      '<button class="mbreset" id="meterReset" title="Clear the meter and start counting again">Reset</button>' +
+      '<button class="mbreset" id="meterReset" type="button" title="Clear the meter and start counting again">Reset</button>' +
     '</div>';
 
   // Width is the share of the total, so the bar and the percentage next to it are the
@@ -738,7 +738,11 @@ function renderAbilities() {
   head.textContent = `${slotted.length} / ${MAX_ACTIVE_ABILITIES} slots used`;
   el.appendChild(head);
 
+  // An ability that only acts on a companion, and has no variant for going without one,
+  // is not a choice for a solo character -- it is a row that does nothing.
+  const petOnly = (b) => ['healpet', 'buffpet', 'petstrike'].includes(b.kind) && !b.solo;
   for (const base of CLASSES[s.classId].abilities) {
+    if (isSolo(s) && petOnly(base)) continue;
     const a = resolveAbility(base);
     const locked = s.level < a.unlock;
     const on = s.abilityToggles[a.id] !== false;
@@ -1300,6 +1304,7 @@ function showAscendToast(form, oldName) {
  */
 function renderPet() {
   const s = game.save;
+  if (unchanged('pet', gearSig(s) + '|' + s.petChoice + '|' + (s.petForm || 0) + '|' + (s.petAscendMisses || 0))) return;
   const forms = formsFor(s);
   $('petSec').classList.toggle('hidden', forms.length === 0 || !s.petChoice);
   if (forms.length === 0 || !s.petChoice) return;
@@ -1568,7 +1573,7 @@ function openEncounter(kind) {
       // see means nothing -- you have to already know what is on the piece, and four
       // items deep you do not. Preview on a copy so nothing is committed by looking.
       const preview = JSON.parse(JSON.stringify(it));
-      const nextRarity = upgradeRarity(preview, s.classId);
+      const nextRarity = upgradeRarity(preview, s.classId, isSolo(s));
       const now = scaledAffixes(it);
       const next = scaledAffixes(preview);
       const changes = next.map((b, i) => {
@@ -1590,7 +1595,7 @@ function openEncounter(kind) {
         <button>Reforge</button>`;
       row.querySelector('button').addEventListener('click', (ev) => {
         if (left <= 0) return;
-        const to = upgradeRarity(it, s.classId);
+        const to = upgradeRarity(it, s.classId, isSolo(s));
         if (!to) return;
         left--;
         log(`${it.name} reforged to ${to.name}.`, 'big');
@@ -1735,6 +1740,7 @@ for (const btn of document.querySelectorAll('.tab, .bnav')) {
  * invisible. Tapping anything explanatory opens a panel instead. Buttons and inputs are
  * skipped so this can never swallow an action.
  */
+let tipTimer = 0;
 document.addEventListener('click', (ev) => {
   const tip = $('tipTap');
   if (!tip) return;
@@ -1750,6 +1756,8 @@ document.addEventListener('click', (ev) => {
   tip.querySelector('b').textContent = label;
   tip.querySelector('span').textContent = hit.title;
   tip.classList.remove('hidden');
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => tip.classList.add('hidden'), 6000);
 });
 
 function updatePauseUi() {

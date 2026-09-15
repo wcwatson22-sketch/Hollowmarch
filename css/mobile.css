@@ -155,7 +155,8 @@
   /* Grows into whatever the scene does not use, and scrolls if a build has more damage
      sources than fit. It was fixed-height inside a column that had already run out of
      room, so the bottom of it was simply cut off the screen. */
-  .vitals, .healthrow { flex: none; }
+  .healthrow { flex: none; }
+  .vitals { flex: 0 0 auto; }
   .meterbar { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 8px 7px; }
   .mbhead { gap: 6px; margin-bottom: 4px; }
   .mbbig { font-size: 15px; }
@@ -164,10 +165,16 @@
   .mbname { min-width: 0; }
   .mbdmg { flex: none; }
   .mbpct { flex: none; min-width: 30px; }
-  /* Every source, now that the meter owns the bottom of the Play screen. On Character
-     the scene stands down and the panel wants the room back, so it clamps there. */
-  .scene-away .meterbar { flex: none; overflow: visible; }
-  .scene-away .mbrow:nth-of-type(n + 3) { display: none; }
+  /* The meter belongs to the fight. On the Character tab it is answering a question you
+     are not asking -- you are there to read gear -- and it was costing the bags a third
+     of the screen. The health bars and stats stay, because a gear decision is made
+     against those. */
+  .scene-away .meterbar { display: none; }
+
+  /* Four sources on the Play tab. Every source meant the meter grew as the build got
+     more complicated, which is exactly when the fight above it needs the room. */
+  .mbrow:nth-of-type(n + 5) { display: none; }
+  .meterbar { flex: 0 1 auto; }
 
   /* The scene stands down on the tabs where you are not watching it. Health bars, stats
      and the meter stay: those are still worth seeing while you re-spec. */
@@ -367,6 +374,10 @@
    touch device will never show — so on a phone all of that writing was invisible.
    A tap on anything explanatory opens this instead. */
 .tiptap {
+  /* Never a tap target. It is an overlay across the bottom of the panel, so anything it
+     can intercept is a button the player was aiming at. It still dismisses on the next
+     tap anywhere, because that handler is on the document. */
+  pointer-events: none;
   position: fixed;
   left: 12px; right: 12px;
   bottom: calc(env(safe-area-inset-bottom) + 64px);

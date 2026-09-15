@@ -81,7 +81,6 @@ function run(classId, solo, seed) {
     if (r === 'win') {
       kills++; streak = 0;
       const mob = enc.enemy;
-      s.gold += mob.gold;
       s.xp += mob.xp;
       s.totalKills = (s.totalKills || 0) + 1;
       while (s.level < MAX_LEVEL && s.xp >= xpToNext(s.level)) { s.xp -= xpToNext(s.level); s.level++; }

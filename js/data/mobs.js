@@ -83,7 +83,7 @@ export function makeMob(zone, index) {
   if (boss) {
     // The last one is a different animal: far more health, hits appreciably harder, and
     // swings faster than anything before it.
-    if (isFinalZone(zone)) {
+    if (zone === FINAL_ZONE) {
       return {
         name: 'The Hollow King', color: '#2a2038', boss: true, final: true, zone,
         maxHp: Math.round(bossHp(zone) * 11), hp: Math.round(bossHp(zone) * 11),

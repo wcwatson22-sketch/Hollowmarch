@@ -187,7 +187,7 @@ export function rollDrop(classId, zone, boss, { killIndex = Infinity, solo = fal
  *
  * Returns the new rarity, or null if the piece is already legendary.
  */
-export function upgradeRarity(item, classId) {
+export function upgradeRarity(item, classId, solo = false) {
   if (!item) return null;
   const idx = RARITIES.findIndex((r) => r.id === item.rarity);
   if (idx < 0 || idx >= RARITIES.length - 1) return null;
@@ -207,8 +207,8 @@ export function upgradeRarity(item, classId) {
   const isTrinket = item.slot === 'trinket';
   if (!isTrinket && affixes.length < to.affixes) {
     const taken = new Set(affixes.map((a) => a.id));
-    const pool = AFFIXES.filter((a) => !taken.has(a.id) && !a.neckOnly)
-      .filter((a) => a.stat !== 'petPow' || item.petOk !== false);
+    const slotBase = item.slot === 'ring2' ? 'ring' : item.slot;
+    const pool = affixPool(classId, solo, slotBase).filter((a) => !taken.has(a.id));
     if (pool.length) {
       const def = pool[Math.floor(rng() * pool.length)];
       const share = 0.55 * Math.pow(item.ilvl, 1.5) * SLOT_WEIGHT[item.slot === 'ring2' ? 'ring' : item.slot] * to.mult / to.affixes;

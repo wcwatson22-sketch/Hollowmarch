@@ -293,7 +293,12 @@ export function estimateDps(save) {
         dps += (p * (a.coef * 0.75 + a.executeCoef * 0.25) * st.abilityDmg * critMult) / cd; break;
       case 'dot': {
         const burst = a.burst ? p * a.burst * st.abilityDmg * critMult : 0;
-        const ticks = (a.ticks || 0) + (mods.ticks || 0);
+        // Haste holds the duration and fits more ticks inside it (see the dot case in
+        // combat.js), so the tick count scales with haste here too. Leaving this at the
+        // base count told a damage-over-time build that haste did nothing for it, which
+        // is the number the upgrade verdict on every piece of gear is read off.
+        const quicken = (st.hooks || {}).quicken || 0;
+        const ticks = ((a.ticks || 0) + (mods.ticks || 0)) * (1 + st.haste + quicken);
         dps += (burst + p * a.coef * ticks * st.dotDmg * dotCritMult) / cd;
         break;
       }

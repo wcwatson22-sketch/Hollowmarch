@@ -308,16 +308,21 @@ export class Encounter {
           this.dealToEnemy(dmg, a.name, crit, 'ability', a.school, a.id);
         }
         this.dots = this.dots.filter((d) => d.id !== a.id); // refresh, don't stack
-        // Haste compresses the interval rather than adding ticks, so a hasted DoT
-        // delivers the same total damage sooner instead of becoming a bigger DoT.
+        // Haste holds the DURATION and adds ticks inside it, rather than compressing the
+        // same ticks into less time. Compressing them meant a damage-over-time build got
+        // almost nothing from haste -- the same total damage, slightly sooner -- which is
+        // most of why haste priced out as the weakest stat on the sheet by a distance.
+        // Now 50% haste is 50% more ticks, and therefore 50% more damage from the effect.
         const quicken = (this.stats.hooks || {}).quicken || 0;
+        const baseTicks = a.ticks + (m.ticks || 0);
+        const duration = baseTicks * a.tick;
         const interval = a.tick / (1 + this.stats.haste + quicken);
         this.dots.push({
           id: a.id,
           name: a.name,
           school: a.school || 'magic',
           type: a.type || 'physical',
-          remaining: a.ticks + (m.ticks || 0),
+          remaining: Math.max(1, Math.round(duration / interval)),
           interval,
           timer: interval,
           amount: p * a.coef * this.stats.dotDmg * this.cls.dmgMult * potency * typeMult,
