@@ -40,6 +40,8 @@ export const TALENTS = {
     t('hemorrhage', 'Hemorrhage',   'Bleed', 5, { dotDmg: 0.08 },   '+8% damage from all damage-over-time effects per rank.'),
     t('impale',     'Impale',       'Bleed', 5, { critDmg: 0.10 },  '+10% critical damage per rank.'),
 
+    t('bloodthirst','Bloodthirst',  'Shouts', 5, { leech: 0.02 },   'You recover 2% of all damage you deal as health, per rank. Capped at 10% from every source.'),
+    t('rendingblow','Rending Blow',  'Bleed', 5, { autoDot: 0.01 },  'Your melee swings have a 1% chance per rank to open a wound that bleeds.'),
     t('thorns',     'Spiked Armor', 'Thorns', 5, { thorns: 0.22 },  'Reflect 22% of your Attack Power at anything that hits you, per rank.'),
     t('retaliation','Retaliation',  'Thorns', 5, { thorns: 0.16, armorPct: 0.04 }, 'Reflect a further 16% of Attack Power and gain +4% armor per rank.'),
     t('toughness',  'Toughness',    'Thorns', 5, { armorPct: 0.07 },'+7% armor per rank.'),
@@ -69,6 +71,8 @@ export const TALENTS = {
     t('rapidkilling','Rapid Killing', 'Ranger', 5, { haste: 0.012 }, '+1.2% haste per rank.'),
     t('marksman',    'Marksmanship',  'Ranger', 5, { physicalDmg: 0.09 }, '+9% physical damage per rank.'),
 
+    t('bloodletting','Bloodletting',  'Assassin', 5, { autoDot: 0.01 },  'Your shots have a 1% chance per rank to leave a bleeding wound.'),
+    t('survivalist', 'Survivalist',   'Ranger', 5, { leech: 0.02 },    'You recover 2% of all damage you deal as health, per rank. Capped at 10% from every source.'),
     t('toxicology',  'Toxicology',    'Assassin', 5, { poisonDmg: 0.14 }, '+14% poison damage per rank.'),
     t('lethaldoses', 'Lethal Doses',  'Assassin', 5, { dotCrit: 0.20 },   'Your poisons and bleeds can critically strike: +20% of your crit chance applies to them per rank.'),
     t('virulence',   'Virulence',     'Assassin', 5, { dotDmg: 0.10 },    '+10% damage from all damage-over-time effects per rank.'),
@@ -130,6 +134,8 @@ export const TALENTS = {
     t('ruin',        'Ruin',          'Fire', 5, { critDmg: 0.11 }, '+11% critical damage per rank.'),
     t('backdraft',   'Backdraft',     'Fire', 5, { haste: 0.012 },  '+1.2% haste per rank.'),
 
+    t('soulsiphon',   'Soul Siphon',  'Shadow', 5, { leech: 0.02 },     'You recover 2% of all damage you deal as health, per rank. Capped at 10% from every source.'),
+    t('embertouch',   'Ember Touch',  'Fire', 5, { autoDot: 0.01 },    'Your wand shots have a 1% chance per rank to leave a cinder burning.'),
     t('shadowmastery','Shadow Mastery','Shadow', 5, { shadowDmg: 0.13 }, '+13% shadow damage per rank.'),
     t('pandemic',     'Pandemic',     'Shadow', 5, { dotCrit: 0.20 },    'Your damage-over-time effects can critically strike: +20% of your crit chance applies to them per rank.'),
     t('contagion',    'Contagion',    'Shadow', 5, { dotDmg: 0.11 },     '+11% damage from all damage-over-time effects per rank.'),

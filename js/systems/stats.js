@@ -27,6 +27,8 @@ import { setStateFor, powersFor } from '../data/sets.js';
 // 14.06 and the number on screen did not change. A reward you cannot see is not a
 // reward. Flat and small beats curved and invisible -- and a finite count means the
 // scene stops being littered with them once you have them all.
+export const LEECH_CAP = 0.10;
+
 export const EMBER_PER = 0.01;    // each ember: +1%
 export const EMBER_COUNT = 25;    // ...and there are only ever this many
 export const EMBER_MAX = EMBER_PER * EMBER_COUNT;   // +25% at the end of it
@@ -113,6 +115,8 @@ export function computeStats(save) {
     // Share of your crit chance that applies to damage-over-time ticks. Zero until a
     // talent grants it: see the DoT crit talents in talents.js.
     dotCrit: 0,
+    leech: 0,
+    autoDot: 0,
   };
 
   // Going alone trades the companion for personal power.
@@ -187,6 +191,11 @@ export function computeStats(save) {
   s.petHp = 1 + (m.petHp || 0);
   s.petArmor = 1 + (m.petArmor || 0);
   s.petHaste = 1 + (m.petHaste || 0);
+  // Hard-capped at 10%. Leech scales with every other damage stat you own, so an
+  // uncapped one grows into unkillability exactly when the content stops being able to
+  // punish you -- which is what Bloodbound did to the final boss before it was gated.
+  s.leech = Math.min(LEECH_CAP, m.leech || 0);
+  s.autoDot = m.autoDot || 0;
 
   // Tier-2 talents: per-ability potency / cooldown / duration overrides.
   s.abilityMods = abilityMods(save.classId, ranks);

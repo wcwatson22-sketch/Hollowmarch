@@ -222,6 +222,7 @@ export class Encounter {
   dealToEnemy(amount, source, crit = false, kind = 'ability', school = 'phys', id = '') {
     this.enemy.hp -= amount;
     this.onEvent({ type: 'dmg', on: 'enemy', amount, source, crit, kind, school, id });
+    this.applyLeech(amount);
 
     // "Echoing". Only direct ability hits echo -- letting ticks echo would make it a
     // damage-over-time talent by accident and swamp the log.
@@ -403,6 +404,13 @@ export class Encounter {
     }
   }
 
+  /** A share of damage dealt, returned as health. Capped in computeStats. */
+  applyLeech(amount) {
+    const rate = this.stats.leech || 0;
+    if (rate <= 0 || amount <= 0) return;
+    this.healPlayer(amount * rate, 'Leech');
+  }
+
   /**
    * Damage sent back at whatever just hit you. A thorns build wants to be attacked,
    * which is the opposite of every other way of playing, so it needs its own hook
@@ -537,6 +545,26 @@ export class Encounter {
       const label = this.cls.autoName;
       this.onEvent({ type: 'cast', id: 'auto', name: label, school: this.cls.primary === 'sp' ? 'magic' : 'phys', kind: 'auto', target: 'enemy' });
       this.dealToEnemy(dmg, label, crit, 'auto', this.cls.primary === 'sp' ? 'magic' : 'phys', label);
+
+      // A swing can leave something behind. The class decides what -- a warrior opens a
+      // wound, a hunter's arrow is tipped, a warlock's wand carries a cinder -- so a
+      // build with bleed or poison or fire talents has a reason to care about the stat
+      // that makes it swing more often.
+      if (this.stats.autoDot > 0 && rng() < this.stats.autoDot) {
+        const proc = this.cls.autoProc;
+        if (proc) {
+          this.dots = this.dots.filter((d) => d.id !== proc.id);
+          const interval = proc.tick / (1 + this.stats.haste);
+          this.dots.push({
+            id: proc.id, name: proc.name, school: proc.school, type: proc.type,
+            remaining: Math.max(1, Math.round((proc.ticks * proc.tick) / interval)),
+            interval, timer: interval,
+            amount: this.stats.power * proc.coef * this.stats.dotDmg * this.cls.dmgMult
+              * (this.stats.typeDmg[proc.type] || 1),
+          });
+          this.onEvent({ type: 'apply', label: proc.name, on: 'enemy' });
+        }
+      }
     }
 
     // Companion auto-attack
