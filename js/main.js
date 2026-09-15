@@ -346,7 +346,7 @@ function onKill() {
   log(`${mob.name} dies. +${mob.xp} xp.`, 'good');
   const leveled = grantXp(mob.xp);
 
-  const drop = rollDrop(s.classId, s.zone, mob.boss, { killIndex: s.totalKills, solo: isSolo(s) });
+  const drop = rollDrop(s.classId, s.zone, mob.boss, { killIndex: s.totalKills, solo: isSolo(s), level: s.level });
   if (drop) {
     s.inventory.push(drop);
     log(`Loot: ${drop.name} (${drop.rarity}, ilvl ${drop.ilvl})`, 'big');
@@ -1577,7 +1577,7 @@ function openEncounter(kind) {
   const finish = () => closeEncounter();
 
   if (kind === 'chest') {
-    const item = rollDrop(s.classId, zone + 2, true, { solo: isSolo(s) });
+    const item = rollDrop(s.classId, zone + 2, true, { solo: isSolo(s), level: s.level });
     $('eventTitle').textContent = 'An unclaimed chest';
     body.innerHTML = `
       <p class="note">Half-buried at the side of the trail, and whoever left it here is
@@ -1628,7 +1628,7 @@ function openEncounter(kind) {
   if (kind === 'merchant') {
     const stock = [];
     for (let i = 0; i < SHOP_SIZE; i++) {
-      const it = rollDrop(s.classId, zone, true, { solo: isSolo(s) });
+      const it = rollDrop(s.classId, zone, true, { solo: isSolo(s), level: s.level });
       if (it) stock.push(it);
     }
     $('eventTitle').textContent = 'A pedlar on the road';

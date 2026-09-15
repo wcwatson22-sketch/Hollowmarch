@@ -22,7 +22,7 @@ export const RARITIES = [
   { id: 'uncommon',  name: 'Uncommon',  color: '#4fc04f', affixes: 2, mult: 1.25, weight: 45  },
   { id: 'rare',      name: 'Rare',      color: '#4f8fe0', affixes: 3, mult: 1.60, weight: 16  },
   { id: 'epic',      name: 'Epic',      color: '#a35fd0', affixes: 4, mult: 2.10, weight: 4.5 },
-  { id: 'legendary', name: 'Legendary', color: '#e0952f', affixes: 5, mult: 3.20, weight: 0.6 },
+  { id: 'legendary', name: 'Legendary', color: '#e0952f', affixes: 5, mult: 3.20, weight: 2.4  },
 ];
 
 // Base item power per slot -- weapons carry the most, trinkets carry the least raw stat.

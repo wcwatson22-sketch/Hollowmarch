@@ -172,6 +172,7 @@ export const MAX_RECORDS = 8;
 
 /** Permanent, cross-character progress. Never wiped by death. */
 export function loadAccount() {
+  if (typeof localStorage === 'undefined') return { wins: 0, records: [] };
   try {
     const raw = localStorage.getItem(ACCOUNT_KEY);
     const data = raw ? JSON.parse(raw) : null;
@@ -186,6 +187,7 @@ export function loadAccount() {
 }
 
 export function saveAccount(account) {
+  if (typeof localStorage === 'undefined') return;
   try { localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account)); } catch (e) { /* full or blocked */ }
 }
 

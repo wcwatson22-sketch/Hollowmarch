@@ -73,14 +73,28 @@ export function earlyDropChance(killIndex) {
  * @param boss      bosses always drop, and drop better
  * @param killIndex 1-based lifetime kill number, used only for the early-game boost
  */
-export function rollDrop(classId, zone, boss, { killIndex = Infinity, solo = false } = {}) {
+/**
+ * Set pieces do not drop before this. A legendary is a set piece, and a set is a chase
+ * that wants a character capable of having one -- handing a level 4 a piece of a
+ * four-item set it will not complete for another forty levels is a tease, not a reward.
+ * Below it a legendary roll becomes an epic, which is still the best thing in the zone.
+ */
+export const SET_MIN_LEVEL = 15;
+
+export function rollDrop(classId, zone, boss, { killIndex = Infinity, solo = false, level = null } = {}) {
   const cls = CLASSES[classId];
   const dropChance = boss ? 1.0 : earlyDropChance(killIndex);
   if (!boss && rng() > dropChance) return null;
 
+  // Tools and encounters that do not track a character use the level the zone implies.
+  const charLevel = level ?? Math.max(1, Math.round(zone / 1.4));
+
   // A boss is a set-piece you spent a zone reaching; handing back a grey is an
   // anticlimax the rest of the fight cannot pay for. Rare is the floor.
-  let rarity = pickRarity(boss ? 3.5 : 1, zone);
+  let rarity = pickRarity(boss ? 5.0 : 1, zone);
+  if (rarity.id === 'legendary' && charLevel < SET_MIN_LEVEL) {
+    rarity = RARITIES[RARITIES.findIndex((r) => r.id === 'legendary') - 1];
+  }
   if (boss) {
     const floorIdx = RARITIES.findIndex((r) => r.id === 'rare');
     const gotIdx = RARITIES.findIndex((r) => r.id === rarity.id);
