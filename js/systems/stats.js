@@ -206,8 +206,20 @@ export function computeStats(save) {
   // The swing between cooldowns. Nothing in any tree touched it before, so the share of
   // your damage that comes from simply attacking was the one part no decision could move.
   s.autoDmg = 1 + (m.autoDmg || 0);
-  // Named rather than summed: a talent converts the companion's damage school.
+  // Named rather than summed: a talent converts the companion's damage school. The
+  // SHARE converted is a per-rank number, so the three ranks each buy a third of it.
+  //
+  // This was previously all-or-nothing on a string modifier, which had two faults. The
+  // ranks past the first did literally nothing -- talentMods takes a string rather than
+  // accumulating it -- so a three-rank talent was a one-point talent with two dead ranks
+  // sitting on top as a trap. And one point flipped the companion's multiplier from
+  // typeDmg.physical to typeDmg.<school> outright, which is worth however much of that
+  // school the rest of the build has bought: measured at +79% on a Faith priest and
+  // rising linearly with every school talent taken. A talent whose value is set entirely
+  // by the rest of the sheet cannot be balanced by changing a coefficient, because it
+  // does not have one.
   s.petType = m.petType || '';
+  s.petTypeShare = Math.min(1, Math.max(0, m.petTypeShare || 0));
 
   // Tier-2 talents: per-ability potency / cooldown / duration overrides.
   s.abilityMods = abilityMods(save.classId, ranks);
@@ -391,6 +403,15 @@ export function estimateDps(save) {
               + p * (a.dotCoef || 0) * ticks * st.dotDmg * dotCritMult) / cd;
         break;
       }
+      case 'petstrike': {
+        // Missing entirely before, which meant the strongest ability three of the four
+        // classes own -- Holy Command measured +34% over the kit it replaced -- priced
+        // at exactly zero. Every gear verdict a pet build saw was read off a model that
+        // could not see its main attack.
+        const comp0 = computeCompanion(save, st);
+        if (comp0) dps += (comp0.ap * a.coef * st.abilityDmg * critMult) / cd;
+        break;
+      }
       case 'dot': {
         const burst = a.burst ? p * a.burst * st.abilityDmg * critMult : 0;
         // Haste holds the duration and fits more ticks inside it (see the dot case in
@@ -409,11 +430,28 @@ export function estimateDps(save) {
   // The companion, if there is one.
   const comp = computeCompanion(save, st);
   if (comp) {
-    const petMult = Math.max(st.typeDmg[st.petType || 'physical'] || 1, st.typeDmg.physical || 1);
+    const petMult = petTypeMult(st);
     dps += (comp.ap * critMult * petMult) / Math.max(0.1, comp.swingTime);
   }
 
   return dps * cls.dmgMult;
+}
+
+/**
+ * The companion's damage-type multiplier, blending physical with the converted school
+ * by however much of the conversion the character has actually bought.
+ *
+ * One function so combat.js and estimateDps cannot drift apart: the upgrade verdict is
+ * read off the estimate, and a pet build whose estimate disagreed with its real damage
+ * would be told the wrong gear is an upgrade.
+ */
+export function petTypeMult(stats) {
+  const phys = stats.typeDmg?.physical || 1;
+  const school = stats.petType ? (stats.typeDmg?.[stats.petType] || 1) : phys;
+  const share = Math.min(1, Math.max(0, stats.petTypeShare || 0));
+  // Never a downgrade: converting into a school you have not invested in should open a
+  // path, not tax you for taking it.
+  return phys + share * Math.max(0, school - phys);
 }
 
 /** Standard mitigation curve: armor is worth less against higher-level content. */

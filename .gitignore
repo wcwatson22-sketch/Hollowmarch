@@ -10,3 +10,4 @@ android/
 
 # App Store Connect API private keys. These belong in the Codemagic UI, never here.
 *.p8
+tools/.p2-*.json

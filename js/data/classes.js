@@ -290,27 +290,61 @@ export function suggestedKit(classId, level, solo = false, talents = null) {
     return mult;
   };
 
+  // A reference character at this level, so the ranking is priced the way estimateDps
+  // prices it rather than by a coefficient-over-cooldown ratio.
+  //
+  // The old ratios mis-ranked abilities badly and consistently, and the direction was
+  // always the same: anything whose damage did not arrive as one number on a short
+  // cooldown was under-priced. Measured against the real combat loop at level 45, 34 of
+  // 71 candidate swaps beat the kit this function chose -- Holy Command by 34%, Kill
+  // Command by 26%, Serpent Sting (a rank-1 ability) by 22%. A player who trusts the
+  // default was handed a deliberately weaker character.
+  //
+  // These are deliberately crude constants: the point is to get the SHAPE right --
+  // ticks scale with haste, a companion strike scales off companion attack power, a
+  // damage-over-time effect is worth its whole duration -- not to predict a number.
+  const REF_CRIT = 0.20 + 0.0055 * level;        // ~25% at 10, ~53% at 60
+  const REF_HASTE = 0.10 + 0.0050 * level;       // ~15% at 10, ~40% at 60
+  const REF_CRITDMG = 1.85;
+  const critMult = 1 + REF_CRIT * (REF_CRITDMG - 1);
+  const cfg = CLASSES[classId].companion;
+  // Mirrors computeCompanion: owner power x the class's multiplier x Bond x the ramp.
+  const petRamp = 0.55 + 0.45 * Math.min(1, (level - 1) / 11);
+  // PETSTRIKE_EDGE is calibrated, not derived. Pricing a companion strike at its raw
+  // share of owner power still left it out of every suggested kit, and an exhaustive
+  // run of all 220/286/165 possible three-ability kits through real combat (see
+  // tools/p2-kit.mjs) says that is simply wrong: the companion strike appears in the
+  // top five kits for every pet build of every class, and the kits without it finish
+  // 35-47% fewer kills. The raw share understates it because the strike also carries
+  // the shortest cooldown of any damage ability the class owns, crits off the owner's
+  // crit, and picks up every Bond and pack talent a pet build is already buying.
+  const PETSTRIKE_EDGE = 2.9;
+  const petShare = !solo && cfg
+    ? cfg.apMult * (1 + (typeBonus.petPow || 0)) * petRamp * PETSTRIKE_EDGE
+    : 0;
+
   const value = (a) => {
-    const cd = Math.max(1, a.cd || 1);
+    // Haste shortens cooldowns, exactly as estimateDps and combat.js apply it.
+    const cd = Math.max(1, (a.cd || 1) / (1 + REF_HASTE));
+    const ticks = (a.ticks || 0) * (1 + REF_HASTE);
     switch (a.kind) {
-      case "nuke": return a.coef / cd;
-      case "dot": return ((a.burst || 0) + a.coef * a.ticks) / cd;
-      case "stun": return (a.coef + 0.5) / cd;
-      case "execute": return (a.coef * 0.7 + a.executeCoef * 0.3) / cd;
-      case "drain": return (a.coef * 1.15) / cd;
-      // Scaled off the companion's attack power rather than yours, and a pet carrying a
-      // pet build runs at roughly four fifths of its owner's power once Bond and the pack
-      // talents are in. Without a case here it fell to the default 0.10 and the ability
-      // added for pet builds was the one thing a pet build never picked up.
-      case "petstrike": return solo ? 0 : (a.coef * 1.0) / cd;
-      // Discounted for the delay: three seconds of nothing is three seconds a dying mob
-      // can deny it entirely, so its throughput on paper overstates it in a fight.
-      case "fuse": return ((a.coef + (a.dotCoef || 0) * (a.ticks || 0)) * 0.7) / cd;
+      case "nuke": return (a.coef * critMult) / cd;
+      case "stun": return (a.coef * critMult) / cd;
+      case "drain": return (a.coef * 1.15 * critMult) / cd;
+      case "execute": return ((a.coef * 0.75 + a.executeCoef * 0.25) * critMult) / cd;
+      case "dot": return ((a.burst || 0) * critMult + a.coef * ticks) / cd;
+      case "fuse": return ((a.coef * critMult + (a.dotCoef || 0) * ticks) * 0.85) / cd;
+      // Scaled off the companion's attack power, which is what the ability actually
+      // multiplies. Priced at a flat coefficient before, and for a pet build that is
+      // the single biggest damage button on the bar.
+      case "petstrike": return solo ? 0 : (a.coef * petShare * critMult) / cd;
       case "buff":
       case "buffpet": {
         if (solo && a.kind === "buffpet" && !a.solo) return 0;
-        const uptime = Math.min(1, (a.dur || 0) / cd);
-        return a.stat === "ap" ? a.amount * uptime * 0.9 : a.amount * uptime * 0.35;
+        const uptime = Math.min(1, (a.dur || 0) / (a.cd || 1));
+        // An attack-power buff multiplies everything for its duration, including the
+        // companion; the old 0.9 weight treated it as a small additive bonus.
+        return a.stat === "ap" ? a.amount * uptime * 1.6 : a.amount * uptime * 0.5;
       }
       // Keeping something alive is throughput too, just never the top pick.
       case "healpet": case "hot": return 0.14;

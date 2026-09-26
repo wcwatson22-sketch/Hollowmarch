@@ -73,11 +73,31 @@ export function makeMob(zone, index) {
   if (boss) {
     // The last one is a different animal: far more health, hits appreciably harder, and
     // swings faster than anything before it.
+    //
+    // His damage came down from x1.42 and his health from x5.8, and the reason is worth
+    // recording because it is not "he was too hard". Measured across eight builds that
+    // each marched to zone 99 honestly (tools/p2-king.mjs), the fight was bimodal: three
+    // builds won 12 times out of 12 and five lost 12 out of 12, with nothing in between
+    // and no relationship to damage -- the highest-throughput build in the study, at
+    // 25,856 damage per second, lost every attempt while one doing 8,246 won every one.
+    //
+    // What separated them was health per second returned to the PLAYER, and at x1.42 the
+    // threshold sat so high that only a continuous leech stream could clear it. Granting
+    // a losing build 15% leech -- around 3,000 health a second -- still lost, because
+    // healing arrives in lumps that overheal while his swings arrive on a metronome.
+    // Scaling his health instead did nothing at all: at x0.25 health the builds that
+    // could not survive him still could not survive him.
+    //
+    // So the lever is his damage, and only his damage. x0.72 moves the median attempt
+    // from stripping 15-35% of him to stripping 50-100%, which is the difference between
+    // a loss that tells you nothing and a loss that tells you to go and get more gear.
+    // The health cut is smaller and does a different job: it keeps the fight from
+    // turning into a nine-minute war of attrition now that more builds can survive it.
     if (zone === FINAL_ZONE) {
       return {
         name: 'The Hollow King', color: '#2a2038', boss: true, final: true, zone,
-        maxHp: Math.round(bossHp(zone) * 5.8), hp: Math.round(bossHp(zone) * 5.8),
-        ap: mobAp(zone) * 1.42,
+        maxHp: Math.round(bossHp(zone) * 5.3), hp: Math.round(bossHp(zone) * 5.3),
+        ap: mobAp(zone) * 1.22,
         armor: mobArmor(zone) * 1.7,
         swingTime: 1.8,
         xp: zoneXp(zone) * 40,

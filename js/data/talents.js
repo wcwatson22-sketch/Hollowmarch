@@ -83,7 +83,7 @@ export const TALENTS = {
     t('firetrap',    'Scorched Earth','Assassin', 5, { fireDmg: 0.12 },   '+12% fire damage per rank.'),
 
     t('beastmastery','Beast Mastery', 'Pack', 5, { petPow: 0.16 },  '+16% companion damage per rank.'),
-    t('venombite',   'Venomous Bite', 'Pack', 3, { petType: 'poison' }, "Your companion's bites become poison damage, scaling with your poison talents instead of physical."),
+    t('venombite',   'Venomous Bite', 'Pack', 3, { petType: 'poison', petTypeShare: 0.34 }, "Shifts a third of your companion's bite damage to poison per rank, scaling with your poison talents instead of physical."),
     t('thickhide',   'Thick Hide',    'Pack', 5, { petArmor: 0.14 },'+14% companion armor per rank.'),
     t('endurancetrn','Endurance Training','Pack', 5, { petHp: 0.12 }, '+12% companion health per rank.'),
     t('frenzy',      'Frenzy',        'Pack', 5, { petHaste: 0.065 }, '+6.5% companion attack speed per rank. Compounds with Bond and with Kill Command.'),
@@ -119,7 +119,7 @@ export const TALENTS = {
     t('shadowweaving','Shadow Weaving','Shadow', 5, { dotDmg: 0.10 },    '+10% damage from all damage-over-time effects per rank.'),
     t('shadowform',   'Shadowform',    'Shadow', 5, { haste: 0.012 },    '+1.2% haste per rank.'),
 
-    t('blessedblade','Blessed Blade',    'Faith', 3, { petType: 'holy' }, "The Mercenary's blade becomes holy damage, scaling with your holy talents instead of physical."),
+    t('blessedblade','Blessed Blade',    'Faith', 3, { petType: 'holy', petTypeShare: 0.34 }, "Shifts a third of the Mercenary's blade damage to holy per rank, scaling with your holy talents instead of physical."),
     t('mercreach',   'Inspiring Presence','Faith', 5, { petPow: 0.15 },  '+15% mercenary damage per rank.'),
     t('wardoffaith', 'Ward of Faith',    'Faith', 5, { petArmor: 0.14 }, '+14% mercenary armor per rank.'),
     t('bulwark',     'Bulwark',          'Faith', 5, { petHp: 0.13 },    '+13% mercenary health per rank.'),
@@ -155,7 +155,7 @@ export const TALENTS = {
     t('siphonlife',   'Siphon Life',  'Shadow', 5, { hpPct: 0.045 },     '+4.5% max health per rank.'),
 
     t('demonicknow', 'Demonic Knowledge', 'Demonology', 5, { petPow: 0.16 }, '+16% demon damage per rank.'),
-    t('felfire',     'Fel Fire',          'Demonology', 3, { petType: 'fire' }, "Your demon's strikes become fire damage, scaling with your fire talents instead of physical."),
+    t('felfire',     'Fel Fire',          'Demonology', 3, { petType: 'fire', petTypeShare: 0.34 }, "Shifts a third of your demon's strike damage to fire per rank, scaling with your fire talents instead of physical."),
     t('felstamina',  'Fel Stamina',       'Demonology', 5, { petHp: 0.13 },  '+13% demon health per rank.'),
     t('demonicaegis','Demonic Aegis',     'Demonology', 5, { petArmor: 0.14 }, '+14% demon armor per rank.'),
     t('demonicfrenzy','Demonic Frenzy',   'Demonology', 5, { petHaste: 0.065 }, '+6.5% demon attack speed per rank. Compounds with Bond and with Fel Command.'),

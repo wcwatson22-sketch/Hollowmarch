@@ -5,7 +5,7 @@
 // attribute it, and every ability emits a `cast` event so the renderer can show it.
 
 import { CLASSES, MAX_ACTIVE_ABILITIES } from '../data/classes.js';
-import { computeStats, computeCompanion, mitigate, isSolo } from './stats.js';
+import { computeStats, computeCompanion, mitigate, isSolo, petTypeMult } from './stats.js';
 import { makeMob, isBossZone, MOBS_PER_ZONE, mobAp } from '../data/mobs.js';
 
 // Injectable for the balance tools; see setLootRng in loot.js.
@@ -268,6 +268,31 @@ export class Encounter {
     this.atone(amount, source);
   }
 
+  /**
+   * A heal that belongs to the companion but does not have to be wasted on it.
+   *
+   * Every heal a hunter or priest owns is declared `healpet`/`hot`, with a `solo:`
+   * variant that retargets it at the player. The consequence was invisible until the
+   * final boss: a character that takes a companion has NO self-healing whatsoever, and
+   * at the King -- where incoming damage is high enough that only a continuous stream
+   * of health keeps anyone alive -- that is not a trade-off, it is a disqualification.
+   * Pet builds measured 0 health per second returned and lost 12 fights out of 12
+   * regardless of dealing three times the damage of the builds that won.
+   *
+   * `drain` already solved this for the warlock, and its reasoning applies unchanged:
+   * whoever is worse off gets the larger share. This routes the rest of the heals the
+   * same way instead of leaving two classes without the mechanic the fight tests.
+   */
+  healShared(amount, source) {
+    const pet = this.companion && this.companion.hp > 0 ? this.companion : null;
+    if (!pet) { this.healPlayer(amount, source); return; }
+    const playerFrac = this.player.hp / this.player.maxHp;
+    const petFrac = pet.hp / pet.maxHp;
+    const toPet = petFrac <= playerFrac ? DRAIN_MAJOR : 1 - DRAIN_MAJOR;
+    this.healCompanion(amount * toPet, source);
+    this.healPlayer(amount * (1 - toPet), source);
+  }
+
   // --- ability execution ----------------------------------------------------
   fire(a) {
     const m = this.mods(a.id);
@@ -387,7 +412,7 @@ export class Encounter {
         break;
       }
       case 'healpet': {
-        this.healCompanion(p * a.coef * this.stats.healPow * potency, a.name);
+        this.healShared(p * a.coef * this.stats.healPow * potency, a.name);
         break;
       }
       case 'healself': {
@@ -559,7 +584,7 @@ export class Encounter {
       h.timer -= dt;
       while (h.timer <= 0 && h.remaining > 0) {
         if (h.onSelf) this.healPlayer(h.amount, h.name);
-        else this.healCompanion(h.amount, h.name);
+        else this.healShared(h.amount, h.name);
         h.remaining--;
         h.timer += h.interval;
       }
@@ -619,12 +644,9 @@ export class Encounter {
         // point -- the pet joins the build instead of sitting beside it.
         const petType = this.stats.petType || 'physical';
         const petSchool = petType === 'physical' || petType === 'bleed' ? 'phys' : 'magic';
-        // The better of the converted school and the physical it replaced. A conversion
-        // should open a path, not tax you for taking it.
-        const typeMult = Math.max(
-          this.stats.typeDmg[petType] || 1,
-          this.stats.typeDmg.physical || 1,
-        );
+        // Physical blended toward the converted school by the share the character has
+        // actually bought. Shared with estimateDps so the upgrade verdict cannot drift.
+        const typeMult = petTypeMult(this.stats);
         const { dmg, crit } = this.roll(this.companion.ap * typeMult, { mult });
         this.onEvent({ type: 'cast', id: 'pet', name: this.companion.name, school: petSchool, kind: 'pet', target: 'enemy' });
         this.dealToEnemy(dmg, this.companion.name, crit, 'pet', petSchool, 'pet');
