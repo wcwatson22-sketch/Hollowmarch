@@ -197,6 +197,12 @@ function renderHall() {
 
 /** Save and step out of the fight. Nothing is lost; the character is on disk. */
 function leaveGame() {
+  // A character you walk away from has ended its march as surely as one that finished,
+  // and since nothing deletes a character any more this is the only other way the hall
+  // hears about a run at all.
+  if (game.save && (game.save.zone > 1 || game.save.totalKills > 0)) {
+    recordRun(game.save, { won: Boolean(game.save.completed) });
+  }
   if (game.save) persist(game.save);
   game.running = false;
   clearInterval(game.logicTimer);

@@ -54,10 +54,10 @@ export const TALENTS = {
     t('endurance',  'Endurance',    'Shouts', 5, { hpPct: 0.04 },   '+4% max health per rank.'),
 
     deep('m_rend',    'Bloodletting',   'Mastery', 'rend',       5, { potency: 0.14 }, 'Rend deals +14% damage per rank.'),
-    deep('m_rend2',   'Gushing Wounds', 'Mastery', 'rend',       3, { ticks: 1 },      'Rend bleeds for 1 additional tick per rank.'),
+    deep('m_dwound2', 'Gushing Wounds', 'Mastery', 'deepwound',  3, { ticks: 1 },      'Deep Wound bleeds for 1 additional tick per rank.'),
     deep('m_deep',    'Mortal Wounds',  'Mastery', 'deepwound',  5, { potency: 0.15 }, 'Deep Wound deals +15% damage per rank.'),
     deep('m_exec',    'Sudden Death',   'Mastery', 'execute',    5, { potency: 0.15 }, 'Execute deals +15% damage per rank.'),
-    deep('m_exec2',   'Blood Scent',    'Mastery', 'execute',    4, { threshold: 0.04 }, 'Execute triggers 4% higher per rank.'),
+    deep('m_bash2',   'Concussive Force','Mastery','shieldbash', 4, { stun: 0.35 },    'Shield Bash stuns 0.35s longer per rank.'),
     deep('m_bash',    'Concussion',     'Mastery', 'shieldbash', 5, { potency: 0.16, stun: 0.2 }, 'Shield Bash: +16% damage and +0.2s stun per rank.'),
     deep('m_shout',   'Commanding Presence', 'Mastery', 'shout', 4, { cdr: 0.10 },     'Battle Shout cooldown -10% per rank.'),
     deep('m_storm',   'Whirling Edge',  'Mastery', 'bladestorm', 5, { potency: 0.16 }, 'Bladestorm deals +16% damage per rank.'),
@@ -89,7 +89,7 @@ export const TALENTS = {
     t('frenzy',      'Frenzy',        'Pack', 5, { petHaste: 0.065 }, '+6.5% companion attack speed per rank. Compounds with Bond and with Kill Command.'),
 
     deep('m_sting',  'Improved Sting', 'Mastery', 'sting',      5, { potency: 0.15 }, 'Serpent Sting deals +15% damage per rank.'),
-    deep('m_sting2', 'Lingering Venom','Mastery', 'sting',      3, { ticks: 1 },      'Serpent Sting lasts 1 additional tick per rank.'),
+    deep('m_calt2',  'Lingering Venom','Mastery', 'caltrops',   3, { ticks: 1 },      'Caltrops lasts 1 additional tick per rank.'),
     deep('m_trap',   'Napalm',         'Mastery', 'trap',       5, { potency: 0.15 }, 'Explosive Trap deals +15% damage per rank.'),
     deep('m_explosive','Shrapnel',      'Mastery', 'explosive',  5, { potency: 0.16 }, 'Explosive Shot deals +16% damage per rank.'),
     deep('m_aimed',  'Careful Aim',    'Mastery', 'aimed',      5, { potency: 0.15 }, 'Aimed Shot deals +15% damage per rank.'),
@@ -126,7 +126,7 @@ export const TALENTS = {
     t('zealotry',    'Zealotry',         'Faith', 5, { petHaste: 0.065 }, '+6.5% Mercenary attack speed per rank. Compounds with Bond and with Holy Command.'),
 
     deep('m_swp',    'Eternal Torment', 'Mastery', 'swp',        5, { potency: 0.15 }, 'Shadow Word: Pain deals +15% damage per rank.'),
-    deep('m_swp2',   'Unending Pain',   'Mastery', 'swp',        3, { ticks: 1 },      'Shadow Word: Pain lasts 1 additional tick per rank.'),
+    deep('m_hfire2', 'Unending Pain',   'Mastery', 'holyfire',   3, { ticks: 1 },      'Holy Fire burns for 1 additional tick per rank.'),
     deep('m_holyfire','Blaze',          'Mastery', 'holyfire',   5, { potency: 0.15 }, 'Holy Fire deals +15% damage per rank.'),
     deep('m_nova',   'Radiance',        'Mastery', 'holynova',   5, { potency: 0.15 }, 'Holy Nova deals +15% damage per rank.'),
     deep('m_penance','Castigation',     'Mastery', 'penance',    5, { potency: 0.15 }, 'Penance deals +15% damage per rank.'),
@@ -161,7 +161,7 @@ export const TALENTS = {
     t('demonicfrenzy','Demonic Frenzy',   'Demonology', 5, { petHaste: 0.065 }, '+6.5% demon attack speed per rank. Compounds with Bond and with Fel Command.'),
 
     deep('m_corr',   'Improved Corruption','Mastery', 'corruption', 5, { potency: 0.15 }, 'Corruption deals +15% damage per rank.'),
-    deep('m_corr2',  'Nightfall',          'Mastery', 'corruption', 3, { ticks: 1 },      'Corruption lasts 1 additional tick per rank.'),
+    deep('m_ua2',    'Nightfall',          'Mastery', 'ua',         3, { ticks: 1 },      'Unstable Affliction lasts 1 additional tick per rank.'),
     deep('m_agony',  'Amplify Curse',      'Mastery', 'agony',      5, { potency: 0.15 }, 'Curse of Agony deals +15% damage per rank.'),
     deep('m_immo',   'Improved Immolate',  'Mastery', 'immolate',   5, { potency: 0.15 }, 'Immolate deals +15% damage per rank.'),
     deep('m_ua',     'Malefic Grasp',      'Mastery', 'ua',         5, { potency: 0.16 }, 'Unstable Affliction deals +16% damage per rank.'),
@@ -245,19 +245,28 @@ export function resolveRanks(save) {
   if (tri && tri.talentId && tri.talentRanks) {
     out[tri.talentId] = (out[tri.talentId] || 0) + tri.talentRanks;
   }
-  // Tomes are permanent and are not refunded by a respec: they are not points you
-  // spent, they are pages you found. Like a trinket's grant they can push a talent past
-  // its normal maximum, which is the whole appeal of finding one for a talent you have
-  // already capped.
+  // Tomes are permanent and are not refunded by a respec: they are not points you spent,
+  // they are pages you found.
   for (const [id, n] of Object.entries(save.tomes || {})) out[id] = (out[id] || 0) + n;
+
+  // Nothing exceeds the talent's own maximum. Trinket grants and tomes used to stack on
+  // top of a capped talent and the panel would read 7/5, which makes "maximum" a
+  // suggestion and quietly makes a trinket worth more the more you had already spent.
+  for (const tal of TALENTS[save.classId] || []) {
+    if (out[tal.id] > tal.max) out[tal.id] = tal.max;
+  }
   return out;
 }
 
 /** A talent a tome can grant to this character, or null if there is nothing sensible. */
 export function tomeTargetFor(save, rng = Math.random) {
+  const have = resolveRanks(save);
   const pool = (TALENTS[save.classId] || []).filter((t) => {
     if (save.petChoice === 'solo' && isPetTalent(t)) return false;
     if (t.tier === 2 && t.ability && save.abilityToggles?.[t.ability] === false) return false;
+    // Ranks are capped at the maximum now, so a page about something you have already
+    // mastered teaches you nothing.
+    if ((have[t.id] || 0) >= t.max) return false;
     return true;
   });
   if (!pool.length) return null;
@@ -284,17 +293,17 @@ export const BRANCH_THRESHOLDS = [10, 20];
 export const BRANCH_BONUSES = {
   warrior: {
     Bleed:  [{ dotDmg: 0.15 }, { dotCrit: 0.30, bleedDmg: 0.20 }],
-    Thorns: [{ thorns: 0.28, armorPct: 0.08 }, { thorns: 0.45, leech: 0.03 }],
+    Thorns: [{ thorns: 0.34, armorPct: 0.10, physicalDmg: 0.12 }, { thorns: 0.55, leech: 0.04, critDmg: 0.20 }],
     Shouts: [{ critDmg: 0.15 }, { abilityDmg: 0.18 }],
   },
   hunter: {
     Ranger:   [{ critDmg: 0.15 }, { physicalDmg: 0.18 }],
-    Assassin: [{ dotDmg: 0.24, poisonDmg: 0.12 }, { dotCrit: 0.40, poisonDmg: 0.25 }],
+    Assassin: [{ dotDmg: 0.34, poisonDmg: 0.20 }, { dotCrit: 0.50, poisonDmg: 0.35, haste: 0.06 }],
     Pack:     [{ petPow: 0.26, petHp: 0.12 }, { petHaste: 0.18, petHp: 0.20 }],
   },
   priest: {
     Holy:   [{ holyDmg: 0.18 }, { abilityDmg: 0.18 }],
-    Shadow: [{ dotDmg: 0.15 }, { dotCrit: 0.30, shadowDmg: 0.18 }],
+    Shadow: [{ dotDmg: 0.26, shadowDmg: 0.14 }, { dotCrit: 0.40, shadowDmg: 0.26 }],
     Faith:  [{ petPow: 0.26, petHp: 0.12 }, { healPow: 0.22, petHaste: 0.16 }],
   },
   warlock: {

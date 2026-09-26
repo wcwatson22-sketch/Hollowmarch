@@ -76,8 +76,8 @@ export function makeMob(zone, index) {
     if (zone === FINAL_ZONE) {
       return {
         name: 'The Hollow King', color: '#2a2038', boss: true, final: true, zone,
-        maxHp: Math.round(bossHp(zone) * 5.5), hp: Math.round(bossHp(zone) * 5.5),
-        ap: mobAp(zone) * 0.95,
+        maxHp: Math.round(bossHp(zone) * 5.8), hp: Math.round(bossHp(zone) * 5.8),
+        ap: mobAp(zone) * 1.42,
         armor: mobArmor(zone) * 1.7,
         swingTime: 1.8,
         xp: zoneXp(zone) * 40,

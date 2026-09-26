@@ -201,7 +201,7 @@ export function ascensionBonus(account = loadAccount()) {
 export function recordRun(save, { won = false } = {}) {
   const account = loadAccount();
   if (won) account.wins = (account.wins || 0) + 1;
-  account.records.push({
+  const entry = {
     name: save.name,
     classId: save.classId,
     zone: save.zone,
@@ -209,7 +209,15 @@ export function recordRun(save, { won = false } = {}) {
     kills: save.totalKills || 0,
     won,
     at: Date.now(),
-  });
+  };
+  // One line per character, not per time they stepped away. A run is recorded when it
+  // ends, and stepping out and back in is not an ending -- without this, quitting five
+  // times would fill the hall with five copies of the same march.
+  const existing = account.records.findIndex(
+    (r) => r.name === entry.name && r.classId === entry.classId,
+  );
+  if (existing >= 0) account.records[existing] = entry;
+  else account.records.push(entry);
   // Deepest first, and only the ones worth remembering.
   account.records.sort((a, b) => (b.won - a.won) || (b.zone - a.zone) || (b.level - a.level));
   account.records = account.records.slice(0, MAX_RECORDS);
