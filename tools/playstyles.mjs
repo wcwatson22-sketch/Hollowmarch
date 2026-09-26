@@ -15,7 +15,7 @@ import { newSave } from '../js/systems/save.js';
 import { rollDrop, itemScore, setLootRng } from '../js/systems/loot.js';
 import { CLASSES, MAX_ACTIVE_ABILITIES, suggestedBuild } from '../js/data/classes.js';
 import { TALENTS, earnedTalentPoints, isPetTalent, branchState } from '../js/data/talents.js';
-import { xpToNext, MOBS_PER_ZONE, MAX_LEVEL, MAX_LIVES, STALL_DEATHS, STALL_DROP } from '../js/data/mobs.js';
+import { xpToNext, MOBS_PER_ZONE, MAX_LEVEL, STALL_DEATHS, STALL_DROP } from '../js/data/mobs.js';
 
 const MINUTES = Number(process.argv[2] || 90);
 const RUNS = Number(process.argv[3] || 5);
@@ -109,7 +109,7 @@ function run(style, seed) {
   respec();
 
   let enc = new Encounter(s, () => {});
-  let t = 0, kills = 0, deaths = 0, lives = MAX_LIVES, lastLevel = 1, ended = false, streak = 0;
+  let t = 0, kills = 0, deaths = 0, lastLevel = 1, streak = 0;
   const limit = MINUTES * 60;
   while (t < limit) {
     let r;
@@ -122,13 +122,12 @@ function run(style, seed) {
       while (s.level < MAX_LEVEL && s.xp >= xpToNext(s.level)) { s.xp -= xpToNext(s.level); s.level++; }
       const d = rollDrop(s.classId, s.zone, mob.boss, { solo: style.solo, level: s.level });
       if (d) { const cur = s.equipped[d.slot]; if (!cur || itemScore(d) > itemScore(cur)) s.equipped[d.slot] = d; }
-      if (mob.boss) { s.zone++; s.mobsKilledInZone = 0; s.checkpoint = s.zone; lives = Math.min(MAX_LIVES, lives + 1); }
+      if (mob.boss) { s.zone++; s.mobsKilledInZone = 0; s.checkpoint = s.zone; }
       else { s.mobsKilledInZone++; if (s.mobsKilledInZone >= MOBS_PER_ZONE) { s.mobsKilledInZone = 0; s.zone++; } }
       if (s.level !== lastLevel) { respec(); lastLevel = s.level; }
       enc = new Encounter(s, () => {});
     } else if (r === 'lose') {
       deaths++;
-      if (--lives <= 0) { ended = true; break; }
       streak++;
       s.zone = Math.max(1, s.checkpoint || 1);
       if (streak > STALL_DEATHS) s.zone = Math.max(1, s.zone - (streak - STALL_DEATHS) * STALL_DROP);
@@ -138,7 +137,7 @@ function run(style, seed) {
   }
   const branches = branchState(s.classId, s.talents);
   return {
-    zone: s.zone, level: s.level, kills, deaths, ended,
+    zone: s.zone, level: s.level, kills, deaths, ended: false,
     ttk: kills ? limit / kills : Infinity,
     bonuses: branches.earned.filter((b) => b.on).length,
   };

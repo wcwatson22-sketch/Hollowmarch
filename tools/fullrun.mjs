@@ -1,4 +1,4 @@
-// Complete marches: zone 1 to the Hollow King, or until the character runs out of lives.
+// Complete marches: zone 1 to the Hollow King, or until the run stops getting anywhere.
 //
 // Every other tool here samples a slice -- ninety minutes of progression, a fixed level,
 // one fight. This plays the whole game, which is the only way to answer "which class is
@@ -14,7 +14,7 @@ import { CLASSES, MAX_ACTIVE_ABILITIES } from '../js/data/classes.js';
 import { TALENTS, earnedTalentPoints, isPetTalent, branchState } from '../js/data/talents.js';
 import { setStateFor } from '../js/data/sets.js';
 import {
-  xpToNext, MOBS_PER_ZONE, MAX_LEVEL, MAX_LIVES, STALL_DEATHS, STALL_DROP,
+  xpToNext, MOBS_PER_ZONE, MAX_LEVEL, STALL_DEATHS, STALL_DROP,
   FINAL_ZONE, isBossZone, isMajorBossZone,
 } from '../js/data/mobs.js';
 import fs from 'node:fs';
@@ -102,8 +102,8 @@ function march(style, seed) {
   respec();
 
   let enc = new Encounter(s, () => {});
-  let t = 0, kills = 0, deaths = 0, lastLevel = 1, streak = 0, lives = MAX_LIVES;
-  let won = false, ranOut = false, deepest = 1;
+  let t = 0, kills = 0, deaths = 0, lastLevel = 1, streak = 0;
+  let won = false, deepest = 1;
   let embers = 0;
   const deathZones = [];
   let timeToFinal = null;
@@ -140,7 +140,6 @@ function march(style, seed) {
           if (worn[0]) upgradeRarity(worn[0], s.classId, style.solo);
         }
         s.zone++; s.mobsKilledInZone = 0; s.checkpoint = s.zone;
-        lives = Math.min(MAX_LIVES, lives + 1);
       } else {
         s.mobsKilledInZone++;
         if (s.mobsKilledInZone >= MOBS_PER_ZONE) { s.mobsKilledInZone = 0; s.zone++; }
@@ -151,7 +150,6 @@ function march(style, seed) {
     } else if (r === 'lose') {
       deaths++;
       deathZones.push(s.zone);
-      if (--lives <= 0) { ranOut = true; break; }
       streak++;
       s.zone = Math.max(1, s.checkpoint || 1);
       if (streak > STALL_DEATHS) s.zone = Math.max(1, s.zone - (streak - STALL_DEATHS) * STALL_DROP);
@@ -164,7 +162,7 @@ function march(style, seed) {
   const branches = branchState(s.classId, s.talents);
   return {
     style: style.id, cls: style.cls, solo: style.solo,
-    won, ranOut, stalled: !won && !ranOut,
+    won, stalled: !won,
     deepest, level: s.level, kills, deaths,
     hours: t / 3600, timeToFinal: timeToFinal ? timeToFinal / 3600 : null,
     setPieces: sets.count, branchBonuses: branches.earned.filter((b) => b.on).length,
@@ -187,14 +185,13 @@ const pct = (n, d) => (d ? ((n / d) * 100).toFixed(0) + '%' : '-');
 console.log(`${ok.length} complete marches, zone 1 to the Hollow King\n`);
 
 console.log('BY CLASS');
-console.log('class     runs   beat the King   ran out of lives   stalled   median deepest   median hours   median deaths');
+console.log('class     runs   beat the King   stalled out   median deepest   median hours   median deaths');
 for (const c of ['warrior', 'hunter', 'priest', 'warlock']) {
   const rs = ok.filter((r) => r.cls === c);
   if (!rs.length) continue;
   console.log(
     c.padEnd(9) + String(rs.length).padStart(5) +
     (pct(rs.filter((r) => r.won).length, rs.length) + ` (${rs.filter((r) => r.won).length})`).padStart(16) +
-    (pct(rs.filter((r) => r.ranOut).length, rs.length)).padStart(19) +
     (pct(rs.filter((r) => r.stalled).length, rs.length)).padStart(10) +
     String(median(rs.map((r) => r.deepest))).padStart(17) +
     median(rs.map((r) => r.hours)).toFixed(1).padStart(15) +

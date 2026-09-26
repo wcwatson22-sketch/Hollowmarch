@@ -14,7 +14,7 @@ import { rollDrop, itemScore, setLootRng } from '../js/systems/loot.js';
 import { CLASSES, MAX_ACTIVE_ABILITIES, suggestedKit } from '../js/data/classes.js';
 import { TALENTS, earnedTalentPoints, isPetTalent } from '../js/data/talents.js';
 import { computeStats, computeCompanion, estimateDps } from '../js/systems/stats.js';
-import { xpToNext, MOBS_PER_ZONE, MAX_LEVEL, MAX_LIVES, STALL_DEATHS, STALL_DROP, isBossZone } from '../js/data/mobs.js';
+import { xpToNext, MOBS_PER_ZONE, MAX_LEVEL, STALL_DEATHS, STALL_DROP, isBossZone } from '../js/data/mobs.js';
 
 const MINUTES = Number(process.argv[2] || 90);
 const RUNS = Number(process.argv[3] || 5);
@@ -65,7 +65,7 @@ function run(classId, solo, seed) {
   spend(s, solo);
 
   let enc = new Encounter(s, () => {});
-  let t = 0, kills = 0, deaths = 0, bosses = 0, streak = 0, lives = MAX_LIVES;
+  let t = 0, kills = 0, deaths = 0, bosses = 0, streak = 0;
   let lastLevel = 1, ended = false, upgrades = 0;
   const limit = MINUTES * 60;
   // Time spent at each zone, so "where did it stall" has an answer.
@@ -90,7 +90,7 @@ function run(classId, solo, seed) {
         const cur = s.equipped[drop.slot];
         if (!cur || itemScore(drop) > itemScore(cur)) { s.equipped[drop.slot] = drop; upgrades++; }
       }
-      if (mob.boss) { bosses++; s.zone++; s.mobsKilledInZone = 0; s.checkpoint = s.zone; lives = Math.min(MAX_LIVES, lives + 1); }
+      if (mob.boss) { bosses++; s.zone++; s.mobsKilledInZone = 0; s.checkpoint = s.zone; }
       else {
         s.mobsKilledInZone++;
         if (s.mobsKilledInZone >= MOBS_PER_ZONE) { s.mobsKilledInZone = 0; s.zone++; }
@@ -99,7 +99,6 @@ function run(classId, solo, seed) {
       enc = new Encounter(s, () => {});
     } else if (r === 'lose') {
       deaths++;
-      if (--lives <= 0) { ended = true; break; }
       streak++;
       s.zone = Math.max(1, s.checkpoint || 1);
       if (streak > STALL_DEATHS) s.zone = Math.max(1, s.zone - (streak - STALL_DEATHS) * STALL_DROP);

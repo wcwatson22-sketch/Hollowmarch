@@ -77,9 +77,9 @@ export const TALENTS = {
 
     t('bloodletting','Bloodletting',  'Assassin', 5, { autoDot: 0.01 },  'Your shots have a 1% chance per rank to leave a bleeding wound.'),
     t('survivalist', 'Survivalist',   'Ranger', 5, { leech: 0.02 },    'You recover 2% of all damage you deal as health, per rank. Capped at 10% from every source.'),
-    t('toxicology',  'Toxicology',    'Assassin', 5, { poisonDmg: 0.14 }, '+14% poison damage per rank.'),
+    t('toxicology',  'Toxicology',    'Assassin', 5, { poisonDmg: 0.20 }, '+20% poison damage per rank.'),
     t('lethaldoses', 'Lethal Doses',  'Assassin', 5, { dotCrit: 0.20 },   'Your poisons and bleeds can critically strike: +20% of your crit chance applies to them per rank.'),
-    t('virulence',   'Virulence',     'Assassin', 5, { dotDmg: 0.10 },    '+10% damage from all damage-over-time effects per rank.'),
+    t('virulence',   'Virulence',     'Assassin', 5, { dotDmg: 0.16 },    '+16% damage from all damage-over-time effects per rank.'),
     t('firetrap',    'Scorched Earth','Assassin', 5, { fireDmg: 0.12 },   '+12% fire damage per rank.'),
 
     t('beastmastery','Beast Mastery', 'Pack', 5, { petPow: 0.16 },  '+16% companion damage per rank.'),
@@ -289,7 +289,7 @@ export const BRANCH_BONUSES = {
   },
   hunter: {
     Ranger:   [{ critDmg: 0.15 }, { physicalDmg: 0.18 }],
-    Assassin: [{ dotDmg: 0.15 }, { dotCrit: 0.30, poisonDmg: 0.18 }],
+    Assassin: [{ dotDmg: 0.24, poisonDmg: 0.12 }, { dotCrit: 0.40, poisonDmg: 0.25 }],
     Pack:     [{ petPow: 0.26, petHp: 0.12 }, { petHaste: 0.18, petHp: 0.20 }],
   },
   priest: {

@@ -5,7 +5,6 @@ import { SLOTS } from '../data/affixes.js';
 import { CLASSES, MAX_ACTIVE_ABILITIES, suggestedKit } from '../data/classes.js';
 import { rollDrop } from './loot.js';
 import { RARITIES } from '../data/affixes.js';
-import { MAX_LIVES } from '../data/mobs.js';
 
 // Name AND art key, so the starter weapon looks like what it is called.
 const STARTERS = {
@@ -77,7 +76,6 @@ export function newSave(classId, name) {
     // Consecutive deaths with no kill between them; see STALL_DEATHS.
     deathStreak: 0,
     // Run out and the character is finished. A boss kill gives one back.
-    lives: MAX_LIVES,
     shop: [],
     shopZone: 0,
     mobsKilledInZone: 0,
@@ -121,7 +119,6 @@ export function load() {
     for (const sl of SLOTS) if (!(sl.id in data.equipped)) data.equipped[sl.id] = null;
     // Fields added after a save was written default rather than reading undefined.
     if (typeof data.petForm !== 'number') data.petForm = 0;
-    if (typeof data.lives !== 'number') data.lives = MAX_LIVES;
     if (typeof data.petAscendMisses !== 'number') data.petAscendMisses = 0;
     if (!data.tomes) data.tomes = {};
     // Gear no longer wears and nothing repairs it, so anything already damaged when the

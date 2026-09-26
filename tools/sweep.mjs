@@ -14,7 +14,7 @@ import { newSave } from '../js/systems/save.js';
 import { rollDrop, itemScore, setLootRng } from '../js/systems/loot.js';
 import { CLASSES, MAX_ACTIVE_ABILITIES, suggestedKit } from '../js/data/classes.js';
 import { TALENTS, TALENT_UNLOCK_LEVEL, earnedTalentPoints } from '../js/data/talents.js';
-import { xpToNext, MOBS_PER_ZONE, MAX_LEVEL, STALL_DEATHS, STALL_DROP, MAX_LIVES } from '../js/data/mobs.js';
+import { xpToNext, MOBS_PER_ZONE, MAX_LEVEL, STALL_DEATHS, STALL_DROP } from '../js/data/mobs.js';
 
 const CLASS_IDS = ['warrior', 'hunter', 'priest', 'warlock'];
 const RUNS = Number(process.argv[2] || 30);
@@ -124,7 +124,7 @@ function run(classId, talentPlan, abilityPlan, solo, seed) {
 
   let enc = new Encounter(s, () => {});
   let t = 0, kills = 0, deaths = 0, bosses = 0, streak = 0;
-  let lives = MAX_LIVES, ended = false;
+  let ended = false;
   let lastKillT = 0, worstGap = 0, lastLevel = 1;
   const limit = MINUTES * 60;
 
@@ -144,7 +144,7 @@ function run(classId, talentPlan, abilityPlan, solo, seed) {
         const cur = s.equipped[drop.slot];
         if (!cur || itemScore(drop) > itemScore(cur)) s.equipped[drop.slot] = drop;
       }
-      if (mob.boss) { bosses++; s.zone++; s.mobsKilledInZone = 0; s.checkpoint = s.zone; lives = Math.min(MAX_LIVES, lives + 1); }
+      if (mob.boss) { bosses++; s.zone++; s.mobsKilledInZone = 0; s.checkpoint = s.zone; }
       else {
         s.mobsKilledInZone++;
         if (s.mobsKilledInZone >= MOBS_PER_ZONE) { s.mobsKilledInZone = 0; s.zone++; }
@@ -157,7 +157,6 @@ function run(classId, talentPlan, abilityPlan, solo, seed) {
     } else if (r === 'lose') {
       deaths++;
       // Out of lives ends the character, so a run cannot farm deaths for free.
-      if (--lives <= 0) { ended = true; break; }
       // Mirror the anti-stall rule: a checkpoint stops being a floor after repeated
       // deaths with nothing killed in between.
       streak++;

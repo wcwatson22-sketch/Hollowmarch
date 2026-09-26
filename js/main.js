@@ -1,7 +1,7 @@
 // Bootstrap + game loop + UI wiring.
 
 import { CLASSES, CLASS_LIST, MAX_ACTIVE_ABILITIES } from './data/classes.js';
-import { themeForZone, xpToNext, MOBS_PER_ZONE, isBossZone, isMajorBossZone, FINAL_ZONE, isFinalZone, MAX_LEVEL, atMaxLevel, STALL_DEATHS, STALL_DROP, MAX_LIVES } from './data/mobs.js';
+import { themeForZone, xpToNext, MOBS_PER_ZONE, isBossZone, isMajorBossZone, FINAL_ZONE, isFinalZone, MAX_LEVEL, atMaxLevel, STALL_DEATHS, STALL_DROP } from './data/mobs.js';
 import { SLOTS, AFFIXES, affixTip, scaledAffixes } from './data/affixes.js';
 import { setStateFor } from './data/sets.js';
 import { TALENTS, TALENT_UNLOCK_LEVEL, DEEP_TALENT_LEVEL, isPetTalent, earnedTalentPoints, spentTalentPoints, trinketRanksFor, tomeTargetFor } from './data/talents.js';
@@ -173,7 +173,7 @@ function renderHall() {
     return `<div class="hrow${r.won ? ' won' : ''}">
       <span class="hn">${attr(r.name)}</span>
       <span class="hc">${cls ? cls.name : r.classId}</span>
-      <span class="hz">${r.won ? 'finished the march' : `fell in Zone ${r.zone}`}</span>
+      <span class="hz">${r.won ? 'finished the march' : `reached Zone ${r.zone}`}</span>
       <span class="hl">lv ${r.level}</span>
     </div>`;
   }).join('');
@@ -383,10 +383,6 @@ function onKill() {
     s.mobsKilledInZone = 0;
     s.checkpoint = s.zone; // the only thing that moves a checkpoint
     log(`Boss down! Checkpoint set at Zone ${s.checkpoint}.`, 'big');
-    if ((s.lives || 0) < MAX_LIVES) {
-      s.lives = (s.lives || 0) + 1;
-      log(`You get your breath back. ${s.lives} of ${MAX_LIVES} lives.`, 'good');
-    }
   } else {
     s.mobsKilledInZone++;
     if (s.mobsKilledInZone >= MOBS_PER_ZONE) {
@@ -424,9 +420,6 @@ function onWipe() {
   // you were unlucky. After a few of those the checkpoint stops being a floor and you
   // fall back toward something farmable -- otherwise a run can lock up permanently.
   s.deathStreak = (s.deathStreak || 0) + 1;
-  s.lives = Math.max(0, (s.lives ?? MAX_LIVES) - 1);
-  if (s.lives <= 0) return runOver();
-  log(`${s.lives} ${s.lives === 1 ? 'life' : 'lives'} left.`, s.lives <= 2 ? 'bad' : '');
   s.zone = s.checkpoint;
   if (s.deathStreak > STALL_DEATHS) {
     const drop = (s.deathStreak - STALL_DEATHS) * STALL_DROP;
@@ -445,33 +438,6 @@ function onWipe() {
   renderAll();
 }
 
-/**
- * Out of lives. The character is finished -- not sent back, not penalised: gone. This is
- * the only thing in the game that deletes progress, which is what makes the other four
- * deaths mean something.
- */
-function runOver() {
-  const s = game.save;
-  log('You have no lives left. This is where the march ends.', 'big');
-  game.running = false;
-  clearInterval(game.logicTimer);
-  game.logicTimer = null;
-  game.respawnIn = 0;
-
-  $('deadBody').innerHTML =
-    `<b>${s.name} the ${CLASSES[s.classId].name}</b> fell in Zone ${s.zone} at level ${s.level},
-     after ${s.totalKills} kills${s.checkpoint > 1 ? ` and ${s.checkpoint - 1} zones banked` : ''}.
-     ${s.completed ? 'The Hollow King was already down — the march was finished.' : ''}`;
-  // Into the hall before the character is destroyed. This is the only thing that
-  // outlives it.
-  recordRun(s, { won: Boolean(s.completed) });
-  $('deadModal').classList.remove('hidden');
-
-  // Drop the character FIRST, so nothing can persist it back over the wipe.
-  game.save = null;
-  game.enc = null;
-  wipe();
-}
 
 /** Seconds face-down after a defeat before the march resumes. */
 const RESPAWN_SECONDS = 3;
@@ -644,11 +610,6 @@ function renderAll() {
   if (pointerHeld) { renderHeld = true; return; }
   const s = game.save;
   $('charLabel').textContent = `${s.name} the ${CLASSES[s.classId].name}`;
-  const lives = s.lives ?? MAX_LIVES;
-  $('lives').innerHTML =
-    Array.from({ length: MAX_LIVES }, (_, i) => `<span class="pip${i < lives ? ' on' : ''}"></span>`).join('') +
-    `<b class="livesnum">${lives}/${MAX_LIVES}</b>`;
-  $('lives').classList.toggle('low', lives <= 2);
   // Whether a companion exists is durable state, not per-frame state. Hiding the bar
   // only inside the animation loop leaves a ghost "Wolf" bar for a petless character
   // any time the browser withholds frames.
@@ -1125,14 +1086,6 @@ function vitalsFor(save) {
         ' It does NOT speed up your companion. From ' + Math.round(st.hasteRating) + ' Haste Rating.' +
         ' Next 1% costs about ' + nextPoint(st.haste, st.hasteRating, HASTE_CAP) + ' more rating.' },
   ];
-  const lives = save.lives ?? MAX_LIVES;
-  rows.push({
-    key: 'lives', label: 'LIVES', value: lives, fmt: (v) => `${v} / ${MAX_LIVES}`,
-    tip: 'Lives remaining. Dying costs one; killing a boss gives one back, up to ' + MAX_LIVES + '. ' +
-      'At zero this character is deleted — it is the only thing in the game that erases progress, ' +
-      'which is what makes the deaths before it matter.',
-  });
-
   const optional = [
     { key: 'petPow', label: 'COMPANION', value: st.petPow, pct: true, show: !!cls.companion,
       tip: 'Bonus damage your companion deals, from Bond affixes and companion talents. It multiplies the companion only — nothing here touches your own hits.' },
@@ -1937,11 +1890,6 @@ $('saveBtn').addEventListener('click', () => {
 });
 
 $('menuBtn').addEventListener('click', leaveGame);
-
-$('deadOk').addEventListener('click', () => {
-  $('deadModal').classList.add('hidden');
-  showMenu();
-});
 
 window.addEventListener('beforeunload', () => { if (game.save) persist(game.save); });
 

@@ -18,16 +18,6 @@ export const MOBS_PER_ZONE = 10;
  * zero kills and 77 deaths. After this many deaths with nothing killed in between, the
  * floor gives way and you drop toward content you can actually farm.
  */
-/**
- * Lives. Run out and the character is gone for good.
- *
- * A boss kill restores one, capped at MAX_LIVES -- the same beat that already banks your
- * checkpoint. Strictly finite lives do not survive contact with the measured death rate
- * (0.3 to 4.4 per five minutes depending on the zone), which would end a run inside ten
- * minutes; tying them to progress makes them a resource you spend pushing and refill by
- * actually getting somewhere.
- */
-export const MAX_LIVES = 5;
 
 export const STALL_DEATHS = 3;
 export const STALL_DROP = 2;   // zones lost per death once the floor gives way
@@ -86,8 +76,8 @@ export function makeMob(zone, index) {
     if (zone === FINAL_ZONE) {
       return {
         name: 'The Hollow King', color: '#2a2038', boss: true, final: true, zone,
-        maxHp: Math.round(bossHp(zone) * 11), hp: Math.round(bossHp(zone) * 11),
-        ap: mobAp(zone) * 1.15,
+        maxHp: Math.round(bossHp(zone) * 5.5), hp: Math.round(bossHp(zone) * 5.5),
+        ap: mobAp(zone) * 0.95,
         armor: mobArmor(zone) * 1.7,
         swingTime: 1.8,
         xp: zoneXp(zone) * 40,
