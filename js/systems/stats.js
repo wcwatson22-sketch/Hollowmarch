@@ -472,7 +472,7 @@ export function petTypeMult(stats) {
 
 // How fast the mitigation constant grows with depth. Exposed the way the RNG seams are,
 // so a harness can sweep it without editing this file between runs.
-let ARMOR_DEPTH = 0.9;
+let ARMOR_DEPTH = 0.40;
 export const setArmorDepth = (v) => { ARMOR_DEPTH = v; };
 export const getArmorDepth = () => ARMOR_DEPTH;
 
