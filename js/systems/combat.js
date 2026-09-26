@@ -140,6 +140,9 @@ export class Encounter {
   spawn() {
     const zone = this.save.zone;
     this.enemy = makeMob(zone, this.save.mobsKilledInZone);
+    // Momentum is built against one target. Carrying it between pulls would turn a
+    // trash run into a permanent multiplier rather than something a long fight earns.
+    this.autoStacks = 0;
     // You arrive at a boss fresh. Trash is the attrition run; a boss is a set-piece,
     // and starting one on the dregs of a health bar made them unwinnable outright.
     if (this.enemy.boss) {
@@ -604,7 +607,14 @@ export class Encounter {
     if (this.playerSwingTimer <= 0) {
       this.playerSwingTimer += this.stats.swingTime;
       const mult = this.buffMult('player', 'ap');
-      const { dmg, crit } = this.roll(this.stats.power * this.cls.autoCoef * this.stats.autoDmg, { mult });
+      // Momentum. Each consecutive swing adds a stack; the ceiling is set by how much
+      // auto-attack talent the character bought, so this is the swing build's scaling
+      // and nobody else's. It rewards haste twice over -- more swings reach the ceiling
+      // sooner and hold it longer -- and it pays more in the long fights deep zones
+      // produce, which is exactly where a flat multiplier was falling behind.
+      const stackMult = 1 + (this.autoStacks || 0) * (this.stats.autoStackPer || 0);
+      this.autoStacks = Math.min(this.stats.autoStackMax || 0, (this.autoStacks || 0) + 1);
+      const { dmg, crit } = this.roll(this.stats.power * this.cls.autoCoef * this.stats.autoDmg * stackMult, { mult });
       const label = this.cls.autoName;
       this.onEvent({ type: 'cast', id: 'auto', name: label, school: this.cls.primary === 'sp' ? 'magic' : 'phys', kind: 'auto', target: 'enemy' });
       this.dealToEnemy(dmg, label, crit, 'auto', this.cls.primary === 'sp' ? 'magic' : 'phys', label);
