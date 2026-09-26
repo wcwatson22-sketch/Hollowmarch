@@ -240,7 +240,24 @@ export const isPetTalent = (tal) =>
  * the effect scales with the full number, which is the whole appeal of finding one.
  */
 export function resolveRanks(save) {
-  const out = { ...(save.talents || {}) };
+  // Spent points are budgeted; found ones are not. Each talent was already clamped to
+  // its own maximum below, but nothing checked the TOTAL, so a save carrying every
+  // talent at max resolved to 131 ranks against the 56 points a level-60 character has
+  // earned. Saves live in localStorage, which makes that an edit away rather than a
+  // hypothetical. Grants from a trinket or a tome are deliberately exempt -- they are
+  // not points you spent, they are pages you found -- so the budget is applied to
+  // save.talents before anything is added on top.
+  const budget = earnedTalentPoints(save.level || 1);
+  const out = {};
+  let spent = 0;
+  for (const tal of TALENTS[save.classId] || []) {
+    const want = Math.max(0, Math.floor(save.talents?.[tal.id] || 0));
+    if (!want) continue;
+    const room = Math.max(0, budget - spent);
+    const take = Math.min(want, tal.max, room);
+    if (take > 0) { out[tal.id] = take; spent += take; }
+    if (spent >= budget) break;
+  }
   const tri = save.equipped?.trinket;
   if (tri && tri.talentId && tri.talentRanks) {
     out[tri.talentId] = (out[tri.talentId] || 0) + tri.talentRanks;

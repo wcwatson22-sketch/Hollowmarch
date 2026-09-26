@@ -512,7 +512,13 @@ export function mitigate(damage, armor, attackerZone) {
   // Sweep ARMOR_DEPTH with tools/p3-armor.mjs before changing it.
   const deep = Math.pow(Math.max(0, attackerZone - 20), 2);
   const k = 40 + 14 * attackerZone + ARMOR_DEPTH * deep;
-  return damage * (1 - armor / (armor + k));
+  // Negative armour would put the ratio above 1 and return NEGATIVE damage, which lands
+  // as healing -- being hit would restore health. Nothing in the loot tables produces a
+  // negative armour value so it was never reachable, but a single bad affix or a hand
+  // edited save is all it would take, and a defensive stat that inverts into immortality
+  // is the wrong thing to leave to chance.
+  const a = Math.max(0, armor || 0);
+  return damage * (1 - a / (a + k));
 }
 
 /** Total gear score, used for the "am I actually strong enough" readout. */
