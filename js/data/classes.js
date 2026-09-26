@@ -92,7 +92,7 @@ export const CLASSES = {
     // that neither choice is a trap: soloHp covers the tank you no longer have.
     soloBonus: 0.238,
     soloHp: 0.25,
-    companion: { name: 'Wolf', color: '#8a8f98', hpMult: 0.82, apMult: 0.385, swingTime: 2.1, armorMult: 0.70 },
+    companion: { name: 'Wolf', color: '#8a8f98', hpMult: 0.98, apMult: 0.385, swingTime: 2.1, armorMult: 0.86 },
     abilities: [
       { id: 'sting', type: 'poison', name: 'Serpent Sting', unlock: 1, cd: 10, kind: 'dot', school: SCHOOL.MAGIC,
         coef: 0.30, ticks: 5, tick: 2.0, desc: 'Poisons the target for 30% AP per tick, 5 ticks.' },

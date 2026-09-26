@@ -579,7 +579,7 @@ export class Encounter {
     if (this.playerSwingTimer <= 0) {
       this.playerSwingTimer += this.stats.swingTime;
       const mult = this.buffMult('player', 'ap');
-      const { dmg, crit } = this.roll(this.stats.power * this.cls.autoCoef, { mult });
+      const { dmg, crit } = this.roll(this.stats.power * this.cls.autoCoef * this.stats.autoDmg, { mult });
       const label = this.cls.autoName;
       this.onEvent({ type: 'cast', id: 'auto', name: label, school: this.cls.primary === 'sp' ? 'magic' : 'phys', kind: 'auto', target: 'enemy' });
       this.dealToEnemy(dmg, label, crit, 'auto', this.cls.primary === 'sp' ? 'magic' : 'phys', label);

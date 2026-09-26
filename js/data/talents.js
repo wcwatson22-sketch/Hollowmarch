@@ -40,6 +40,7 @@ export const TALENTS = {
     t('hemorrhage', 'Hemorrhage',   'Bleed', 5, { dotDmg: 0.08 },   '+8% damage from all damage-over-time effects per rank.'),
     t('impale',     'Impale',       'Bleed', 5, { critDmg: 0.10 },  '+10% critical damage per rank.'),
 
+    t('brutalswings','Brutal Swings', 'Shouts', 5, { autoDmg: 0.06 }, '+6% melee auto-attack damage per rank.'),
     t('bloodthirst','Bloodthirst',  'Shouts', 5, { leech: 0.02 },   'You recover 2% of all damage you deal as health, per rank. Capped at 10% from every source.'),
     t('rendingblow','Rending Blow',  'Bleed', 5, { autoDot: 0.01 },  'Your melee swings have a 1% chance per rank to open a wound that bleeds.'),
     t('thorns',     'Spiked Armor', 'Thorns', 5, { thorns: 0.22 },  'Reflect 22% of your Attack Power at anything that hits you, per rank.'),
@@ -60,12 +61,15 @@ export const TALENTS = {
     deep('m_bash',    'Concussion',     'Mastery', 'shieldbash', 5, { potency: 0.16, stun: 0.2 }, 'Shield Bash: +16% damage and +0.2s stun per rank.'),
     deep('m_shout',   'Commanding Presence', 'Mastery', 'shout', 4, { cdr: 0.10 },     'Battle Shout cooldown -10% per rank.'),
     deep('m_storm',   'Whirling Edge',  'Mastery', 'bladestorm', 5, { potency: 0.16 }, 'Bladestorm deals +16% damage per rank.'),
+    deep('m_heroic',  'Improved Heroic Strike','Mastery','heroic',  5, { potency: 0.15 }, 'Heroic Strike deals +15% damage per rank.'),
+    deep('m_mortal',  'Deep Cuts',      'Mastery', 'mortal',     5, { potency: 0.15 }, 'Mortal Strike deals +15% damage per rank.'),
   ],
 
   // RANGER -- direct shots, crit, and the big single hits.
   // ASSASSIN -- entirely poisons and bleeds, with the talent that lets them crit.
   // PACK -- the companion build.
   hunter: [
+    t('steadyaim',   'Steady Aim',    'Ranger', 5, { autoDmg: 0.06 }, '+6% Auto Shot damage per rank.'),
     t('lethalshots', 'Lethal Shots',  'Ranger', 5, { crit: 0.009 },  '+0.9% crit chance per rank.'),
     t('mortalshots', 'Mortal Shots',  'Ranger', 5, { critDmg: 0.11 },'+11% critical damage per rank.'),
     t('rapidkilling','Rapid Killing', 'Ranger', 5, { haste: 0.012 }, '+1.2% haste per rank.'),
@@ -79,7 +83,7 @@ export const TALENTS = {
     t('firetrap',    'Scorched Earth','Assassin', 5, { fireDmg: 0.12 },   '+12% fire damage per rank.'),
 
     t('beastmastery','Beast Mastery', 'Pack', 5, { petPow: 0.16 },  '+16% companion damage per rank.'),
-    t('venombite',   'Venomous Bite', 'Pack', 1, { petType: 'poison' }, "Your companion's bites become poison damage, scaling with your poison talents instead of physical."),
+    t('venombite',   'Venomous Bite', 'Pack', 3, { petType: 'poison' }, "Your companion's bites become poison damage, scaling with your poison talents instead of physical."),
     t('thickhide',   'Thick Hide',    'Pack', 5, { petArmor: 0.14 },'+14% companion armor per rank.'),
     t('endurancetrn','Endurance Training','Pack', 5, { petHp: 0.12 }, '+12% companion health per rank.'),
     t('frenzy',      'Frenzy',        'Pack', 5, { petHaste: 0.065 }, '+6.5% companion attack speed per rank. Compounds with Bond and with Kill Command.'),
@@ -92,6 +96,9 @@ export const TALENTS = {
     deep('m_kill',   'Executioner',    'Mastery', 'killshot',   5, { potency: 0.16 }, 'Kill Shot deals +16% damage per rank.'),
     deep('m_bwrath', 'Unleashed Fury', 'Mastery', 'bwrath',     4, { cdr: 0.10 },     "Beast's Fury cooldown -10% per rank."),
     deep('m_bestial','Primal Rage',    'Mastery', 'bestial',    4, { cdr: 0.10 },     'Bestial Wrath cooldown -10% per rank.'),
+    deep('m_arcane', 'Arcane Precision','Mastery', 'arcaneshot', 5, { potency: 0.15 }, 'Arcane Shot deals +15% damage per rank.'),
+    deep('m_caltrops','Barbed Ground',  'Mastery', 'caltrops',   5, { potency: 0.15 }, 'Caltrops deals +15% damage per rank.'),
+    deep('m_concuss','Sharpened Heads', 'Mastery', 'concussive', 5, { potency: 0.15 }, 'Concussive Shot deals +15% damage per rank.'),
     deep('m_killcmd','Go for the Throat','Mastery','killcmd',    5, { potency: 0.16 }, 'Kill Command deals +16% damage per rank.'),
     deepStat('m_pack', 'Alpha',          'Mastery', 5, { petPow: 0.11, petHaste: 0.04 }, 'The wolf leads: +14% companion damage and +5% companion attack speed per rank.'),
   ],
@@ -100,7 +107,8 @@ export const TALENTS = {
   // SHADOW -- damage over time, with the talent that lets it crit.
   // FAITH -- the companion build.
   priest: [
-    t('searinglight','Searing Light',  'Holy', 5, { holyDmg: 0.12 }, '+12% holy damage per rank.'),
+    t('wandspec',    'Wand Specialisation','Holy', 5, { autoDmg: 0.06 }, '+6% wand damage per rank.'),
+    t('searinglight','Searing Light', 'Holy', 5, { holyDmg: 0.12 }, '+12% holy damage per rank.'),
     t('divinefury',  'Divine Fury',    'Holy', 5, { crit: 0.009 },   '+0.9% crit chance per rank.'),
     t('holyspec',    'Holy Specialization','Holy', 5, { critDmg: 0.10 }, '+10% critical damage per rank.'),
     t('spiritualitv','Spirituality',   'Holy', 5, { healPow: 0.10 }, '+10% healing done per rank.'),
@@ -111,7 +119,7 @@ export const TALENTS = {
     t('shadowweaving','Shadow Weaving','Shadow', 5, { dotDmg: 0.10 },    '+10% damage from all damage-over-time effects per rank.'),
     t('shadowform',   'Shadowform',    'Shadow', 5, { haste: 0.012 },    '+1.2% haste per rank.'),
 
-    t('blessedblade','Blessed Blade',    'Faith', 1, { petType: 'holy' }, "The Mercenary's blade becomes holy damage, scaling with your holy talents instead of physical."),
+    t('blessedblade','Blessed Blade',    'Faith', 3, { petType: 'holy' }, "The Mercenary's blade becomes holy damage, scaling with your holy talents instead of physical."),
     t('mercreach',   'Inspiring Presence','Faith', 5, { petPow: 0.15 },  '+15% mercenary damage per rank.'),
     t('wardoffaith', 'Ward of Faith',    'Faith', 5, { petArmor: 0.14 }, '+14% mercenary armor per rank.'),
     t('bulwark',     'Bulwark',          'Faith', 5, { petHp: 0.13 },    '+13% mercenary health per rank.'),
@@ -125,6 +133,7 @@ export const TALENTS = {
     deep('m_renew',  'Empowered Renew', 'Mastery', 'renew',      5, { potency: 0.16 }, 'Renew heals +16% per rank.'),
     deep('m_gheal',  'Divine Providence','Mastery','gheal',      4, { cdr: 0.10 },     'Greater Heal cooldown -10% per rank.'),
     deep('m_command','Righteous Order',  'Mastery','command',    5, { potency: 0.16 }, 'Holy Command deals +16% damage per rank.'),
+    deep('m_fiend',  'Bound Servant',   'Mastery', 'shadowfiend', 5, { potency: 0.15 }, 'Shadowfiend deals +15% damage per rank.'),
     deepStat('m_faith','Sworn Blade',    'Mastery', 5, { petPow: 0.11, petHaste: 0.04 }, 'The Mercenary fights for something: +13% damage and +5% attack speed per rank.'),
   ],
 
@@ -133,6 +142,7 @@ export const TALENTS = {
   // DEMONOLOGY -- the pet build.
   warlock: [
     t('emberstorm',  'Emberstorm',    'Fire', 5, { fireDmg: 0.13 }, '+13% fire damage per rank.'),
+    t('demonicwand', 'Demonic Focus',  'Fire', 5, { autoDmg: 0.06 }, '+6% wand damage per rank.'),
     t('devastation', 'Devastation',   'Fire', 5, { crit: 0.009 },   '+0.9% crit chance per rank.'),
     t('ruin',        'Ruin',          'Fire', 5, { critDmg: 0.11 }, '+11% critical damage per rank.'),
     t('backdraft',   'Backdraft',     'Fire', 5, { haste: 0.012 },  '+1.2% haste per rank.'),
@@ -145,7 +155,7 @@ export const TALENTS = {
     t('siphonlife',   'Siphon Life',  'Shadow', 5, { hpPct: 0.045 },     '+4.5% max health per rank.'),
 
     t('demonicknow', 'Demonic Knowledge', 'Demonology', 5, { petPow: 0.16 }, '+16% demon damage per rank.'),
-    t('felfire',     'Fel Fire',          'Demonology', 1, { petType: 'fire' }, "Your demon's strikes become fire damage, scaling with your fire talents instead of physical."),
+    t('felfire',     'Fel Fire',          'Demonology', 3, { petType: 'fire' }, "Your demon's strikes become fire damage, scaling with your fire talents instead of physical."),
     t('felstamina',  'Fel Stamina',       'Demonology', 5, { petHp: 0.13 },  '+13% demon health per rank.'),
     t('demonicaegis','Demonic Aegis',     'Demonology', 5, { petArmor: 0.14 }, '+14% demon armor per rank.'),
     t('demonicfrenzy','Demonic Frenzy',   'Demonology', 5, { petHaste: 0.065 }, '+6.5% demon attack speed per rank. Compounds with Bond and with Fel Command.'),
@@ -158,6 +168,8 @@ export const TALENTS = {
     deep('m_soulfire','Emberfall',         'Mastery', 'soulfire',   5, { potency: 0.16 }, 'Soul Fire deals +16% damage per rank.'),
     deep('m_drain',  'Soul Leech',         'Mastery', 'drain',      5, { potency: 0.16 }, 'Drain Life deals +16% damage per rank.'),
     deep('m_felcmd', 'Command Demon',      'Mastery', 'felcommand', 5, { potency: 0.16 }, 'Fel Command deals +16% damage per rank.'),
+    deep('m_sburn',  'Conflagrate',        'Mastery', 'shadowburn', 5, { potency: 0.15 }, 'Shadowburn deals +15% damage per rank.'),
+    deep('m_chaos',  'Devastating Chaos',  'Mastery', 'chaosbolt',  5, { potency: 0.15 }, 'Chaos Bolt deals +15% damage per rank.'),
     deepStat('m_demon','Master of Demons',  'Mastery', 5, { petPow: 0.11, petHaste: 0.04 }, 'The demon is the weapon: +14% demon damage and +5% demon attack speed per rank.'),
   ],
 };
@@ -195,6 +207,8 @@ export function suggestedTalents(classId, level, solo, kitIds, abilitiesOf) {
     }
     // Stats that are good for everyone.
     if (p.crit || p.critDmg || p.haste || p.abilityDmg) score += 1.4;
+    if (p.autoDmg) score += 1.3;   // every build swings between cooldowns
+    if (p.autoDot) score += hasDot ? 1.1 : 0.4;
     if (p.hpPct || p.armorPct || p.thorns || p.leech) score += 0.5;
     return score;
   };
@@ -270,23 +284,23 @@ export const BRANCH_THRESHOLDS = [10, 20];
 export const BRANCH_BONUSES = {
   warrior: {
     Bleed:  [{ dotDmg: 0.15 }, { dotCrit: 0.30, bleedDmg: 0.20 }],
-    Thorns: [{ thorns: 0.40, armorPct: 0.08 }, { thorns: 0.70, leech: 0.03 }],
+    Thorns: [{ thorns: 0.28, armorPct: 0.08 }, { thorns: 0.45, leech: 0.03 }],
     Shouts: [{ critDmg: 0.15 }, { abilityDmg: 0.18 }],
   },
   hunter: {
     Ranger:   [{ critDmg: 0.15 }, { physicalDmg: 0.18 }],
     Assassin: [{ dotDmg: 0.15 }, { dotCrit: 0.30, poisonDmg: 0.18 }],
-    Pack:     [{ petPow: 0.18 }, { petHaste: 0.15, petHp: 0.20 }],
+    Pack:     [{ petPow: 0.26, petHp: 0.12 }, { petHaste: 0.18, petHp: 0.20 }],
   },
   priest: {
     Holy:   [{ holyDmg: 0.18 }, { abilityDmg: 0.18 }],
     Shadow: [{ dotDmg: 0.15 }, { dotCrit: 0.30, shadowDmg: 0.18 }],
-    Faith:  [{ petPow: 0.18 }, { healPow: 0.22, petHaste: 0.12 }],
+    Faith:  [{ petPow: 0.26, petHp: 0.12 }, { healPow: 0.22, petHaste: 0.16 }],
   },
   warlock: {
     Fire:       [{ fireDmg: 0.18 }, { critDmg: 0.22 }],
     Shadow:     [{ dotDmg: 0.15 }, { dotCrit: 0.30, shadowDmg: 0.18 }],
-    Demonology: [{ petPow: 0.18 }, { petHaste: 0.15, petHp: 0.20 }],
+    Demonology: [{ petPow: 0.26, petHp: 0.12 }, { petHaste: 0.18, petHp: 0.20 }],
   },
 };
 

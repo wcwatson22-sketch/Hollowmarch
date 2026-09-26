@@ -118,6 +118,7 @@ export function computeStats(save) {
     dotCrit: 0,
     leech: 0,
     autoDot: 0,
+    autoDmg: 0,
   };
 
   // Going alone trades the companion for personal power.
@@ -202,6 +203,9 @@ export function computeStats(save) {
   // punish you -- which is what Bloodbound did to the final boss before it was gated.
   s.leech = Math.min(LEECH_CAP, m.leech || 0);
   s.autoDot = m.autoDot || 0;
+  // The swing between cooldowns. Nothing in any tree touched it before, so the share of
+  // your damage that comes from simply attacking was the one part no decision could move.
+  s.autoDmg = 1 + (m.autoDmg || 0);
   // Named rather than summed: a talent converts the companion's damage school.
   s.petType = m.petType || '';
 
@@ -356,7 +360,7 @@ export function estimateDps(save) {
   const type = (a) => st.typeDmg[a.type] || 1;
 
   // Auto-attack: continuous, and the only thing haste touched before.
-  let dps = (st.power * cls.autoCoef * critMult) / Math.max(0.1, st.swingTime);
+  let dps = (st.power * cls.autoCoef * st.autoDmg * critMult) / Math.max(0.1, st.swingTime);
 
   const slotted = cls.abilities
     .filter((a) => save.level >= a.unlock && save.abilityToggles?.[a.id] !== false)
