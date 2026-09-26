@@ -51,7 +51,7 @@ function spend(save, solo) {
 
 function slot(save) {
   const cls = CLASSES[save.classId];
-  const keep = new Set(suggestedKit(save.classId, save.level, save.petChoice === 'solo'));
+  const keep = new Set(suggestedKit(save.classId, save.level, save.petChoice === 'solo', save.talents));
   for (const a of cls.abilities) save.abilityToggles[a.id] = keep.has(a.id);
 }
 

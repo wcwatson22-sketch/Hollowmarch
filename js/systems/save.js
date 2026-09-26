@@ -146,7 +146,7 @@ export function load() {
       }
       const slotted = known.abilities.filter((ab) => data.abilityToggles[ab.id] !== false);
       if (slotted.length === 0 || slotted.length > MAX_ACTIVE_ABILITIES) {
-        const kit = new Set(suggestedKit(data.classId, data.level || 1, data.petChoice === 'solo'));
+        const kit = new Set(suggestedKit(data.classId, data.level || 1, data.petChoice === 'solo', data.talents));
         for (const ab of known.abilities) data.abilityToggles[ab.id] = kit.has(ab.id);
       }
     }

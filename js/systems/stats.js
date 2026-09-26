@@ -3,7 +3,7 @@
 
 import { CLASSES, MAX_ACTIVE_ABILITIES } from '../data/classes.js';
 import { scaledAffixes } from '../data/affixes.js';
-import { talentMods, abilityMods, resolveRanks } from '../data/talents.js';
+import { talentMods, abilityMods, resolveRanks, branchState } from '../data/talents.js';
 import { currentForm } from '../data/evolution.js';
 
 import { setStateFor, powersFor } from '../data/sets.js';
@@ -136,6 +136,11 @@ export function computeStats(save) {
   // Talents: percentage modifiers applied after gear.
   const ranks = resolveRanks(save);
   const m = talentMods(save.classId, ranks, { solo: isSolo(save) });
+
+  // Committing to a branch pays its own bonus, into the same bag.
+  const branches = branchState(save.classId, ranks);
+  for (const [k, v] of Object.entries(branches.mods)) m[k] = (m[k] || 0) + v;
+  s.branches = branches.earned;
 
   // Set bonuses and legendary powers add into the same modifier bag as talents, so
   // every downstream consumer picks them up without knowing they exist.
@@ -399,7 +404,10 @@ export function estimateDps(save) {
 
   // The companion, if there is one.
   const comp = computeCompanion(save, st);
-  if (comp) dps += (comp.ap * critMult * (st.typeDmg[st.petType || 'physical'] || 1)) / Math.max(0.1, comp.swingTime);
+  if (comp) {
+    const petMult = Math.max(st.typeDmg[st.petType || 'physical'] || 1, st.typeDmg.physical || 1);
+    dps += (comp.ap * critMult * petMult) / Math.max(0.1, comp.swingTime);
+  }
 
   return dps * cls.dmgMult;
 }

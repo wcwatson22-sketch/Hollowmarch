@@ -162,6 +162,60 @@ export const TALENTS = {
   ],
 };
 
+/**
+ * Where a character's points should go, given the abilities it is carrying.
+ *
+ * suggestedKit picks abilities that the spent talents support; this picks talents that
+ * support the carried abilities. Both halves are needed: measuring the tree with a
+ * throughput-ranked kit had a third of every class's talents reading as literally zero,
+ * because they modified abilities the character had never slotted.
+ *
+ * Scoring is deliberately crude -- it only needs to prefer a talent that touches your
+ * kit over one that does not.
+ */
+export function suggestedTalents(classId, level, solo, kitIds, abilitiesOf) {
+  const kit = new Set(kitIds || []);
+  const abilities = (abilitiesOf || []).filter((a) => kit.has(a.id));
+  const types = new Set(abilities.map((a) => a.type || 'physical'));
+  const hasDot = abilities.some((a) => a.kind === 'dot' || a.kind === 'fuse');
+  const hasPetAbility = abilities.some((a) => ['petstrike', 'buffpet', 'healpet'].includes(a.kind));
+
+  const relevance = (tal) => {
+    const p = tal.per || {};
+    let score = 0.35;                                   // everything is worth something
+    if (tal.ability) score += kit.has(tal.ability) ? 3.2 : -0.3;
+    for (const [type, key] of [['bleed','bleedDmg'],['poison','poisonDmg'],['fire','fireDmg'],
+                               ['shadow','shadowDmg'],['holy','holyDmg'],['arcane','arcaneDmg'],
+                               ['physical','physicalDmg']]) {
+      if (p[key]) score += types.has(type) ? 2.2 : -0.2;
+    }
+    if (p.dotDmg || p.dotCrit) score += hasDot ? 1.9 : -0.3;
+    if (p.petPow || p.petHaste || p.petHp || p.petArmor || p.petType) {
+      score += solo ? -99 : (hasPetAbility ? 2.0 : 1.2);
+    }
+    // Stats that are good for everyone.
+    if (p.crit || p.critDmg || p.haste || p.abilityDmg) score += 1.4;
+    if (p.hpPct || p.armorPct || p.thorns || p.leech) score += 0.5;
+    return score;
+  };
+
+  const usable = (TALENTS[classId] || [])
+    .filter((tal) => level >= (tal.req || 0))
+    .filter((tal) => !(solo && isPetTalent(tal)))
+    .map((tal) => ({ tal, r: relevance(tal) }))
+    .filter((x) => x.r > 0)
+    .sort((a, b) => b.r - a.r)
+    .map((x) => x.tal);
+
+  let points = earnedTalentPoints(level);
+  const out = {};
+  for (const tal of usable) {
+    while (points > 0 && (out[tal.id] || 0) < tal.max) { out[tal.id] = (out[tal.id] || 0) + 1; points--; }
+    if (points <= 0) break;
+  }
+  return out;
+}
+
 /** Talents that only do anything for a character with a companion. */
 export const isPetTalent = (tal) =>
   Boolean(tal.per.petPow || tal.per.petHp || tal.per.petArmor || tal.per.petHaste || tal.per.petType);
@@ -201,6 +255,69 @@ export const trinketRanksFor = (save, talentId) => {
   const tri = save.equipped?.trinket;
   return tri && tri.talentId === talentId ? tri.talentRanks || 0 : 0;
 };
+
+// ---------------------------------------------------------------- branch bonuses
+//
+// Branches were a heading. Nothing rewarded staying inside one, so an optimiser
+// correctly ignored them and took the three biggest numbers in the tree -- which is why
+// a third of every class's talents measured as doing nothing at all. A threshold gives
+// the grouping teeth: commit to a playstyle and the playstyle gives you something no
+// other path can.
+//
+// Deliberately modest. These steer a build; they are not supposed to BE the build.
+export const BRANCH_THRESHOLDS = [10, 20];
+
+export const BRANCH_BONUSES = {
+  warrior: {
+    Bleed:  [{ dotDmg: 0.15 }, { dotCrit: 0.30, bleedDmg: 0.20 }],
+    Thorns: [{ thorns: 0.40, armorPct: 0.08 }, { thorns: 0.70, leech: 0.03 }],
+    Shouts: [{ critDmg: 0.15 }, { abilityDmg: 0.18 }],
+  },
+  hunter: {
+    Ranger:   [{ critDmg: 0.15 }, { physicalDmg: 0.18 }],
+    Assassin: [{ dotDmg: 0.15 }, { dotCrit: 0.30, poisonDmg: 0.18 }],
+    Pack:     [{ petPow: 0.18 }, { petHaste: 0.15, petHp: 0.20 }],
+  },
+  priest: {
+    Holy:   [{ holyDmg: 0.18 }, { abilityDmg: 0.18 }],
+    Shadow: [{ dotDmg: 0.15 }, { dotCrit: 0.30, shadowDmg: 0.18 }],
+    Faith:  [{ petPow: 0.18 }, { healPow: 0.22, petHaste: 0.12 }],
+  },
+  warlock: {
+    Fire:       [{ fireDmg: 0.18 }, { critDmg: 0.22 }],
+    Shadow:     [{ dotDmg: 0.15 }, { dotCrit: 0.30, shadowDmg: 0.18 }],
+    Demonology: [{ petPow: 0.18 }, { petHaste: 0.15, petHp: 0.20 }],
+  },
+};
+
+/** Points spent per branch, mastery included so a specialist is credited for it. */
+export function branchPoints(classId, points) {
+  const out = {};
+  for (const tal of TALENTS[classId] || []) {
+    const rank = points?.[tal.id] || 0;
+    if (!rank || !tal.branch) continue;
+    out[tal.branch] = (out[tal.branch] || 0) + rank;
+  }
+  return out;
+}
+
+/** Which branch bonuses are earned, as a modifier bag and as something to display. */
+export function branchState(classId, points) {
+  const spent = branchPoints(classId, points);
+  const table = BRANCH_BONUSES[classId] || {};
+  const mods = {};
+  const earned = [];
+  for (const [branch, tiers] of Object.entries(table)) {
+    const have = spent[branch] || 0;
+    tiers.forEach((bag, i) => {
+      const need = BRANCH_THRESHOLDS[i];
+      const on = have >= need;
+      if (on) for (const [k, v] of Object.entries(bag)) mods[k] = (mods[k] || 0) + v;
+      earned.push({ branch, need, have, on, bag });
+    });
+  }
+  return { spent, mods, earned };
+}
 
 /** Sum every tier-1 talent's per-rank effect into one modifier bag. */
 export function talentMods(classId, points, { solo = false } = {}) {

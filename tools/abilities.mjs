@@ -14,7 +14,7 @@
 import { Encounter, setCombatRng } from '../js/systems/combat.js';
 import { newSave } from '../js/systems/save.js';
 import { rollDrop, itemScore, setLootRng } from '../js/systems/loot.js';
-import { CLASSES, MAX_ACTIVE_ABILITIES, suggestedKit } from '../js/data/classes.js';
+import { CLASSES, MAX_ACTIVE_ABILITIES, suggestedKit, suggestedBuild } from '../js/data/classes.js';
 import { TALENTS, earnedTalentPoints, isPetTalent } from '../js/data/talents.js';
 import { mobHp } from '../js/data/mobs.js';
 
@@ -23,6 +23,49 @@ const LEVELS = process.argv[3] ? [Number(process.argv[3])] : [25, 45, 60];
 const TRIALS = 14;          // gear rolls per measurement
 const WINDOW = 120;         // seconds of fighting per trial
 const STEP = 0.1;
+
+
+/**
+ * The zone a character of this level is actually in, and the gear it would actually own.
+ *
+ * Both were wrong before and in opposite directions. The zone was a flat level * 1.4 --
+ * but a character's zone-to-level ratio climbs from 0.6 early to about 1.57 at the cap,
+ * measured over four simulated hours of real progression. And the gear was twenty trash
+ * rolls at one zone, where a real character has been replacing pieces the whole way in
+ * and takes a guaranteed rare-or-better off every boss. A harness that under-gears its
+ * subject reports the content as impossible; one that leaves it in zone 1 reports the
+ * content as harmless. Both happened here.
+ */
+const ZONE_FOR_LEVEL = { 5: 3, 10: 7, 15: 14, 20: 22, 25: 31, 30: 40, 35: 50, 40: 58, 45: 68, 50: 76, 55: 86, 60: 94 };
+function zoneForLevel(level) {
+  const keys = Object.keys(ZONE_FOR_LEVEL).map(Number).sort((a, b) => a - b);
+  if (level <= keys[0]) return Math.max(1, Math.round(level * 0.6));
+  for (let i = 1; i < keys.length; i++) {
+    if (level <= keys[i]) {
+      const a = keys[i - 1], b = keys[i];
+      const f = (level - a) / (b - a);
+      return Math.round(ZONE_FOR_LEVEL[a] + (ZONE_FOR_LEVEL[b] - ZONE_FOR_LEVEL[a]) * f);
+    }
+  }
+  return ZONE_FOR_LEVEL[60];
+}
+
+/** Gear accumulated across the walk in, boss drops included. */
+function outfit(save, classId, solo, level, zone) {
+  for (const slot of Object.keys(save.equipped)) {
+    let best = null;
+    // A spread of depths rather than one: the piece you are wearing came from wherever
+    // it dropped, not from the zone you happen to be standing in.
+    for (const z of [Math.max(1, Math.round(zone * 0.55)), Math.max(1, Math.round(zone * 0.8)), zone]) {
+      for (let i = 0; i < 14; i++) {
+        const d = rollDrop(classId, z, i % 7 === 0, { solo, level });
+        if (d && d.slot === slot && (!best || itemScore(d) > itemScore(best))) best = d;
+      }
+    }
+    if (best) save.equipped[slot] = best;
+  }
+  return save;
+}
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -47,16 +90,10 @@ function character(classId, level, solo, seed) {
     while (pts > 0 && (s.talents[t.id] || 0) < t.max) { s.talents[t.id] = (s.talents[t.id] || 0) + 1; pts--; }
     if (pts <= 0) break;
   }
-  const zone = Math.max(1, Math.round(level * 1.4));
-  for (const slot of Object.keys(s.equipped)) {
-    let best = null;
-    for (let i = 0; i < 20; i++) {
-      const d = rollDrop(classId, zone, false, { solo, level });
-      if (d && d.slot === slot && (!best || itemScore(d) > itemScore(best))) best = d;
-    }
-    if (best) s.equipped[slot] = best;
-  }
-  return s;
+  const zone = zoneForLevel(level);
+  s.zone = zone;
+  s.checkpoint = zone;
+  return outfit(s, classId, solo, level, zone);
 }
 
 /** Damage dealt and taken over a fixed window, against trash that respawns forever. */
@@ -98,7 +135,7 @@ for (const classId of classes) {
       if (pool.length <= MAX_ACTIVE_ABILITIES) continue;
 
       // Baseline: what the class would take on its own.
-      const baseKit = suggestedKit(classId, level, solo);
+      const baseKit = suggestedBuild(classId, level, solo).kit;
       const rows = [];
       let baseDps = 0, baseTaken = 0;
 

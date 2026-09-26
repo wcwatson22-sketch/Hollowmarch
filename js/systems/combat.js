@@ -619,7 +619,12 @@ export class Encounter {
         // point -- the pet joins the build instead of sitting beside it.
         const petType = this.stats.petType || 'physical';
         const petSchool = petType === 'physical' || petType === 'bleed' ? 'phys' : 'magic';
-        const typeMult = this.stats.typeDmg[petType] || 1;
+        // The better of the converted school and the physical it replaced. A conversion
+        // should open a path, not tax you for taking it.
+        const typeMult = Math.max(
+          this.stats.typeDmg[petType] || 1,
+          this.stats.typeDmg.physical || 1,
+        );
         const { dmg, crit } = this.roll(this.companion.ap * typeMult, { mult });
         this.onEvent({ type: 'cast', id: 'pet', name: this.companion.name, school: petSchool, kind: 'pet', target: 'enemy' });
         this.dealToEnemy(dmg, this.companion.name, crit, 'pet', petSchool, 'pet');

@@ -1,3 +1,5 @@
+import { abilityMods, talentMods, suggestedTalents } from './talents.js';
+
 // Class definitions: base stats, per-level growth, companion, and ability kits.
 // Abilities are cooldown-based and player-toggleable. `unlock` is character level.
 // The first ability is available at level 1: an auto-battler with nothing in the
@@ -148,7 +150,7 @@ export const CLASSES = {
     growth: { hp: 12, ap: 0, sp: 3.0, armor: 1.2, crit: 0.0011, haste: 0.0014 },
     // Still the frailest companion, but it has to contribute enough to be worth healing.
     // Chosen at level 5 instead of keeping the companion.
-    soloBonus: 0.302,
+    soloBonus: 0.205,
     soloHp: 0.30,
     companion: { name: 'Mercenary', color: '#9a7b4f', hpMult: 0.85, apMult: 0.50, swingTime: 2.4, armorMult: 0.9 },
     abilities: [
@@ -257,7 +259,37 @@ export const CLASSES = {
  * Scored as throughput per second of cooldown. Taking the NEWEST three would be
  * simpler but would strip a class of its identity the moment a big nuke unlocked.
  */
-export function suggestedKit(classId, level, solo = false) {
+/**
+ * The three abilities this character should carry.
+ *
+ * Now takes the talents that have actually been spent. Without them this ranked purely
+ * on raw throughput, which is why a third of every talent tree measured as doing
+ * literally nothing: Improved Corruption is worth zero if the kit never slots
+ * Corruption, and the kit never slotted Corruption because the kit did not know the
+ * talent existed. Branches are meant to be playstyles; a playstyle is a set of talents
+ * AND the abilities they modify, and nothing connected the two halves.
+ */
+export function suggestedKit(classId, level, solo = false, talents = null) {
+  // What the spent talents do for one specific ability: its own potency and cooldown
+  // talents, plus the damage-type talents that happen to match its school.
+  const mods = talents ? abilityMods(classId, talents) : {};
+  const typeBonus = talents ? talentMods(classId, talents, { solo }) : {};
+  const synergy = (a) => {
+    const m = mods[a.id] || {};
+    let mult = 1 + (m.potency || 0) + (m.cdr || 0) * 0.6 + (m.ticks || 0) * 0.12;
+    const key = a.type === 'bleed' ? 'bleedDmg'
+      : a.type === 'poison' ? 'poisonDmg'
+      : a.type === 'fire' ? 'fireDmg'
+      : a.type === 'shadow' ? 'shadowDmg'
+      : a.type === 'holy' ? 'holyDmg'
+      : a.type === 'arcane' ? 'arcaneDmg'
+      : 'physicalDmg';
+    mult *= 1 + (typeBonus[key] || 0);
+    // A damage-over-time build's dot talents apply to every dot it carries.
+    if (a.kind === 'dot' || a.kind === 'fuse') mult *= 1 + (typeBonus.dotDmg || 0);
+    return mult;
+  };
+
   const value = (a) => {
     const cd = Math.max(1, a.cd || 1);
     switch (a.kind) {
@@ -287,7 +319,8 @@ export function suggestedKit(classId, level, solo = false) {
   };
 
   const pool = CLASSES[classId].abilities.filter((a) => a.unlock <= level);
-  const ranked = [...pool].sort((x, y) => value(y) - value(x));
+  const score = (a) => value(a) * synergy(a);
+  const ranked = [...pool].sort((x, y) => score(y) - score(x));
   const picked = ranked.slice(0, MAX_ACTIVE_ABILITIES);
 
   // A class whose companion is doing the tanking keeps one way to keep it standing.
@@ -307,9 +340,35 @@ export function suggestedKit(classId, level, solo = false) {
   return picked.map((a) => a.id);
 }
 
+/**
+ * A coherent build: the kit and the talents agreed with each other.
+ *
+ * suggestedKit wants to know the talents and suggestedTalents wants to know the kit, so
+ * neither can go first. Start from the throughput ranking, spec for it, re-pick the kit
+ * now that the talents are known, and repeat until it stops moving -- which it does in
+ * two or three passes because the pool is small.
+ *
+ * This is what a player does by hand and it is what the balance tools had never done:
+ * every measurement of a talent tree until now was taken on a character whose abilities
+ * had been chosen as though the tree did not exist.
+ */
+export function suggestedBuild(classId, level, solo = false) {
+  let kit = suggestedKit(classId, level, solo);
+  let talents = suggestedTalents(classId, level, solo, kit, CLASSES[classId].abilities);
+  for (let pass = 0; pass < 4; pass++) {
+    const nextKit = suggestedKit(classId, level, solo, talents);
+    const nextTalents = suggestedTalents(classId, level, solo, nextKit, CLASSES[classId].abilities);
+    const settled = nextKit.join() === kit.join()
+      && JSON.stringify(nextTalents) === JSON.stringify(talents);
+    kit = nextKit; talents = nextTalents;
+    if (settled) break;
+  }
+  return { kit, talents };
+}
+
 /** Apply suggestedKit to a save in place. Used by the balance tools. */
 export function autoSlot(save) {
-  const keep = new Set(suggestedKit(save.classId, save.level, save.petChoice === 'solo'));
+  const keep = new Set(suggestedBuild(save.classId, save.level, save.petChoice === 'solo').kit);
   for (const a of CLASSES[save.classId].abilities) save.abilityToggles[a.id] = keep.has(a.id);
   return save;
 }
