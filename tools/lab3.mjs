@@ -408,9 +408,16 @@ function march(style, seed, runNo) {
   };
 }
 
+// An isolation run: P3_ONLY=hun-haste restricts the pool to one archetype so an
+// outlier can be re-measured at a sample size that means something, without disturbing
+// the seed formula the full regressions share.
+const ONLY = (process.env.P3_ONLY || '').split(',').filter(Boolean);
+const POOL = ONLY.length ? STYLES.filter((x) => ONLY.includes(x.id)) : STYLES;
+if (ONLY.length && !POOL.length) { console.error('P3_ONLY matched no archetype'); process.exit(1); }
+
 const rows = [];
 for (let i = 0; i < RUNS; i++) {
-  const style = STYLES[(i + SEED_OFFSET) % STYLES.length];
+  const style = POOL[(i + SEED_OFFSET) % POOL.length];
   rows.push(march(style, 70000 + (i + SEED_OFFSET) * 641, i + SEED_OFFSET + 1));
   if (OUT && (i + 1) % 4 === 0) fs.writeFileSync(OUT, JSON.stringify(rows));
 }
