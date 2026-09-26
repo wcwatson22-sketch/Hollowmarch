@@ -176,4 +176,4 @@ for (const classId of ['hunter', 'priest', 'warlock']) {
 const deathy = all.filter((m) => m.deaths > 12);
 if (deathy.length) console.log('\nhigh death counts: ' + deathy.map((m) => `${m.classId} ${m.solo ? 'solo' : 'pet'} (${m.deaths})`).join(', '));
 const ran = all.filter((m) => m.ended > 0);
-if (ran.length) console.log('ran out of lives: ' + ran.map((m) => `${m.classId} ${m.solo ? 'solo' : 'pet'} (${m.ended}/${RUNS} runs)`).join(', '));
+if (ran.length) console.log('runs that ended early: ' + ran.map((m) => `${m.classId} ${m.solo ? 'solo' : 'pet'} (${m.ended}/${RUNS} runs)`).join(', '));

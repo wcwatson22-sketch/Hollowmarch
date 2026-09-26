@@ -156,7 +156,6 @@ function run(classId, talentPlan, abilityPlan, solo, seed) {
       enc = new Encounter(s, () => {});
     } else if (r === 'lose') {
       deaths++;
-      // Out of lives ends the character, so a run cannot farm deaths for free.
       // Mirror the anti-stall rule: a checkpoint stops being a floor after repeated
       // deaths with nothing killed in between.
       streak++;
@@ -170,7 +169,7 @@ function run(classId, talentPlan, abilityPlan, solo, seed) {
 
   return {
     classId, talentPlan, abilityPlan, solo,
-    zone: s.zone, level: s.level, kills, deaths, bosses, ended, livesLeft: lives,
+    zone: s.zone, level: s.level, kills, deaths, bosses, ended,
     ttk: kills > 0 ? limit / kills : Infinity,
     worstGap,
     stalled: worstGap > limit * 0.35,
