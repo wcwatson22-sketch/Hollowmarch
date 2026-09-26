@@ -68,16 +68,32 @@ export function emberStep(count) {
 // which saturated instead -- a level 5 character sat at 32.8% crit. The exponential is
 // what makes level-scaling safe here.)
 //
-// Fitted to these breakpoints -- run tools/ratings.mjs after touching any of them:
-//   level  5, typical gear   -> ~10% crit,  ~6% haste
-//   level 20, typical gear   -> ~23% crit, ~15% haste
-//   level 60, typical gear   -> ~56% crit, ~42% haste
-//   level 60, best-in-slot   -> ~80% crit, ~55% haste
-// 50% haste and 75%+ crit remain endgame builds, not mid-game defaults.
-export const CRIT_CAP = 0.72;
-export const HASTE_CAP = 0.52;
-const CRIT_K0 = 120, CRIT_P = 0.619;
-const HASTE_K0 = 92, HASTE_P = 0.610;
+// (The breakpoint list that used to sit here described the pre-Phase-3 constants and is
+// superseded by the fit recorded below.)
+//
+// The caps sit further away than a character can reach and the divisors are large
+// enough that best-in-slot rating lands well short of them. The old numbers put a
+// capped character at 95% of the ceiling, so the last third of the game had no crit
+// decision left in it: 100 more crit rating was worth 0.22 percentage points, and a
+// build that spent its entire identity on crit finished at 79% against 74% for one that
+// ignored crit completely. Worse, the gap PEAKED at level 40 and shrank after it, so
+// investment mattered less the longer someone played.
+//
+// Fitted against the rating a real character actually carries, taken from 100 marches
+// rather than assumed (typical 90 at level 10 rising to 2,300 at 60; best-in-slot 150
+// rising to 4,600):
+//   level 10, typical -> ~13% crit, best-in-slot ~20%   (gap  6pp)
+//   level 40, typical -> ~34% crit, best-in-slot ~53%   (gap 18pp)
+//   level 60, typical -> ~52% crit, best-in-slot ~74%   (gap 24pp, was 12pp)
+//   level 60 marginal value of +100 rating: 0.6pp, was 0.22pp
+// The cap deliberately stays clear of the 0.95 hard clamp further down: at CRIT_CAP 0.95
+// roughly one character in six saturated it and extra crit rating became worth nothing
+// again, which is the whole problem being fixed. At 0.90 it is one in a hundred.
+// Run tools/p2-curve.mjs and tools/p3-secondary.mjs after touching any of these six.
+export const CRIT_CAP = 0.90;
+export const HASTE_CAP = 0.75;
+const CRIT_K0 = 100, CRIT_P = 0.80;
+const HASTE_K0 = 100, HASTE_P = 0.80;
 const K_FOR = (cap, level) => (cap === HASTE_CAP
   ? HASTE_K0 * Math.pow(Math.max(1, level || 1), HASTE_P)
   : CRIT_K0 * Math.pow(Math.max(1, level || 1), CRIT_P));
@@ -454,18 +470,29 @@ export function petTypeMult(stats) {
   return phys + share * Math.max(0, school - phys);
 }
 
+// How fast the mitigation constant grows with depth. Exposed the way the RNG seams are,
+// so a harness can sweep it without editing this file between runs.
+let ARMOR_DEPTH = 0.9;
+export const setArmorDepth = (v) => { ARMOR_DEPTH = v; };
+export const getArmorDepth = () => ARMOR_DEPTH;
+
 /** Standard mitigation curve: armor is worth less against higher-level content. */
 export function mitigate(damage, armor, attackerZone) {
   // A tighter constant makes armour matter more, which is what turns "my gear is
   // behind" into "I am dying" rather than merely "this is slow".
   //
-  // The quadratic term is zero below zone 20 and takes over past it. Armour grows with
-  // item level AND rarity, and rarity improves with depth, so it compounds -- a capped
-  // character carries ~3,900 armour against a k of 1,440 at zone 100, which is 73%
-  // reduction and rising. Deep content could not land a meaningful hit on anyone, and
-  // the Hollow King was being beaten at 100% health by builds picked to be bad.
+  // The quadratic term is zero below zone 20 and takes over past it.
+  //
+  // The figures that used to be written here -- "a capped character carries ~3,900
+  // armour against a k of 1,440 at zone 100, which is 73% reduction and rising" --
+  // described the curve BEFORE the quadratic term was added and were never updated.
+  // Measured now: k at zone 100 is 7,200, a capped character carries about 3,500
+  // armour, and that is 32.7% reduction, not 73%. Nor is it rising -- it peaks near
+  // zone 20 at about 57% and falls from there, because k grows 22x between zones 20 and
+  // 100 while worn armour grows only 8.3x. Armour is not weak; it loses a race.
+  // Sweep ARMOR_DEPTH with tools/p3-armor.mjs before changing it.
   const deep = Math.pow(Math.max(0, attackerZone - 20), 2);
-  const k = 40 + 14 * attackerZone + 0.9 * deep;
+  const k = 40 + 14 * attackerZone + ARMOR_DEPTH * deep;
   return damage * (1 - armor / (armor + k));
 }
 
