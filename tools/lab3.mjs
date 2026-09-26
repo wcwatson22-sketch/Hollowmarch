@@ -240,6 +240,7 @@ function march(style, seed, runNo) {
   hook(enc);
 
   let t = 0, kills = 0, deaths = 0, lastLevel = 1, streak = 0;
+  let gearChangedThisKill = false;
   let won = false, deepest = 1, embers = 0, kingAttempts = 0;
   let lastKillT = 0, worstGap = 0, worstGapZone = 1;
   const deathZones = [];
@@ -301,6 +302,7 @@ function march(style, seed, runNo) {
             if (!affixes.some((x) => wantedAffixes.has(x))) gear.takenOffStat++;
           }
           s.equipped[drop.slot] = drop;
+          gearChangedThisKill = true;
         } else {
           gear.passed++;
         }
@@ -325,8 +327,37 @@ function march(style, seed, runNo) {
       blocks[block()].kills++;
       if (t - fightStart > longestFight) { longestFight = t - fightStart; longestFightZone = s.zone; }
       fightStart = t;
-      if (s.level !== lastLevel) { kit = respec(); lastLevel = s.level; }
-      enc = new Encounter(s, onEvent); hook(enc); hp = enc.player.hp;
+      // Advance the way js/main.js does, which is NOT what this harness used to do.
+      //
+      // It built a fresh Encounter after every kill, and the Encounter constructor sets
+      // player.hp to maxHp -- so every simulated character was fully healed after every
+      // single mob, in every march of every phase. REST_HEAL was never once exercised,
+      // the attrition model the code is built around was never tested, and deaths could
+      // only ever happen inside a single fight. The real game calls reset() (which
+      // applies REST_HEAL and stands the companion back up) and then spawn(), and it
+      // rebuilds only on a level-up or an ascension, where a full heal is intended
+      // because the whole stat block changed.
+      //
+      // Rebuilding also handed back every cooldown, which the code comments in reset()
+      // explicitly say must carry across pulls -- so long-cooldown burst was being
+      // measured with perfect uptime it does not have.
+      const leveled = s.level !== lastLevel;
+      enc.reset();
+      if (leveled) {
+        kit = respec(); lastLevel = s.level;
+        enc = new Encounter(s, onEvent); hook(enc);
+      } else if (gearChangedThisKill) {
+        // Mirrors afterGearChange(): new stats, but health PERCENTAGES carry, because
+        // otherwise picking up an item is a free full heal.
+        const pPct = enc.player.hp / enc.player.maxHp;
+        const cPct = enc.companion ? enc.companion.hp / enc.companion.maxHp : 1;
+        enc = new Encounter(s, onEvent); hook(enc);
+        enc.player.hp = Math.max(1, enc.player.maxHp * pPct);
+        if (enc.companion) enc.companion.hp = enc.companion.maxHp * cPct;
+      }
+      enc.spawn();
+      gearChangedThisKill = false;
+      hp = enc.player.hp;
     } else if (r === 'lose') {
       deaths++; deathZones.push(s.zone);
       blocks[block()].deaths++;
