@@ -171,6 +171,10 @@ function march(style, seed, runNo) {
   let healGross = 0, healEff = 0;
   let rawIncoming = 0;            // what the swings were worth before armour
   let hitsTaken = 0;
+  // Only the damage from those same full hits. Dividing ALL damage taken by the count
+  // of full hits reported -362% mitigation for companion builds, where most incoming is
+  // splash past the pet and never entered the numerator's denominator at all.
+  let takenOnFullHits = 0;
   let castCount = 0, lastCastT = 0, worstCastGap = 0;
   const castCounts = {};          // how often each ability actually fires
   const killGaps = [];
@@ -284,6 +288,7 @@ function march(style, seed, runNo) {
       // than averaged into a number that means nothing.
       if (!enc.companion || enc.companion.hp <= 0) {
         rawIncoming += enc.enemy.ap;
+        takenOnFullHits += hit;
         hitsTaken++;
       }
     }
@@ -465,7 +470,7 @@ function march(style, seed, runNo) {
       ])),
     },
     // Measured, not inferred: what the swings were worth against what landed.
-    mitigation: rawIncoming > 0 ? 1 - (taken / Math.max(1, hitsTaken)) / (rawIncoming / Math.max(1, hitsTaken)) : 0,
+    mitigation: rawIncoming > 0 ? 1 - takenOnFullHits / rawIncoming : 0,
     fullHitsTaken: hitsTaken,
     pacing: {
       castsPerMin: (castCount / Math.max(1, t)) * 60,

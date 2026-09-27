@@ -94,9 +94,16 @@ export function makeMob(zone, index) {
     // The health cut is smaller and does a different job: it keeps the fight from
     // turning into a nine-minute war of attrition now that more builds can survive it.
     if (zone === FINAL_ZONE) {
+      // Divided back out of the phase shape on purpose. The shape exists to make the
+      // last twenty zones examine a finished build, and it multiplies mobHp, which
+      // bossHp is four times -- so adding it silently made the King 1.55x tougher as a
+      // side effect of a change aimed at trash. He is 5.3 x bossHp because that number
+      // was measured in Phase 4, and if it should move it should move because someone
+      // measured him again, not because the approach to him got steeper.
+      const kingHp = Math.round((bossHp(zone) / phaseShape(zone)) * 5.3);
       return {
         name: 'The Hollow King', color: '#2a2038', boss: true, final: true, zone,
-        maxHp: Math.round(bossHp(zone) * 5.3), hp: Math.round(bossHp(zone) * 5.3),
+        maxHp: kingHp, hp: kingHp,
         ap: mobAp(zone) * 1.48,
         armor: mobArmor(zone) * 1.7,
         swingTime: 1.8,
