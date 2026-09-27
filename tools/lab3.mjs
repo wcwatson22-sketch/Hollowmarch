@@ -23,12 +23,13 @@
 //
 //   node tools/lab3.mjs [runs] [outFile] [seedOffset]
 
-import { Encounter, setCombatRng } from '../js/systems/combat.js';
+import { Encounter, setCombatRng, REST_HEAL } from '../js/systems/combat.js';
 import { newSave } from '../js/systems/save.js';
 import { rollDrop, itemScore, upgradeRarity, setLootRng } from '../js/systems/loot.js';
 import { CLASSES, MAX_ACTIVE_ABILITIES } from '../js/data/classes.js';
 import { TALENTS, earnedTalentPoints, isPetTalent, branchState } from '../js/data/talents.js';
 import { setStateFor } from '../js/data/sets.js';
+import { rollAscension, applyAscension } from '../js/data/evolution.js';
 import { computeStats, computeCompanion } from '../js/systems/stats.js';
 import {
   xpToNext, MOBS_PER_ZONE, MAX_LEVEL, STALL_DEATHS, STALL_DROP, isMajorBossZone,
@@ -175,6 +176,7 @@ function march(style, seed, runNo) {
   const block = () => Math.floor((Math.min(100, Math.max(1, s.zone)) - 1) / 10);
   const blocks = Array.from({ length: 10 }, () => ({
     deaths: 0, kills: 0, seconds: 0, taken: 0, dealt: 0, healed: 0, upgrades: 0,
+    hpInSum: 0, hpOutSum: 0, fights: 0, restSum: 0,
   }));
   const gear = {
     dropped: 0, taken: 0, passed: 0, setPieces: 0, setBroken: 0,
@@ -241,6 +243,22 @@ function march(style, seed, runNo) {
 
   let t = 0, kills = 0, deaths = 0, lastLevel = 1, streak = 0;
   let gearChangedThisKill = false;
+  // The attrition curve needs the health bar at the START of each fight, which is the
+  // one number that says whether a zone is wearing the character down or not.
+  let hpEnteringFight = 1;
+  let ascendedThisKill = false;
+  let ascensions = 0;
+  // A third RNG stream, separate from combat and loot so adding these does not shift a
+  // single existing draw and the seeds stay comparable with earlier phases.
+  const metaRng = mulberry32(seed * 31 + 7);
+  // js/main.js spawns an ember every EMBER_MIN_GAP..EMBER_MAX_GAP seconds and the player
+  // clicks it before EMBER_LIFETIME runs out. The harness previously granted one every
+  // 420s, which reached the 25-ember cap after about three simulated hours instead of
+  // about eleven minutes -- so every measured character was missing up to 25% attack
+  // power, spell power, armour, bond and health through the whole early and midgame.
+  // CAPTURE is the one modelling assumption here: a real player misses some.
+  const EMBER_MIN_GAP = 18, EMBER_MAX_GAP = 34, EMBER_CAPTURE = 0.8;
+  let emberTimer = EMBER_MIN_GAP + metaRng() * (EMBER_MAX_GAP - EMBER_MIN_GAP);
   let won = false, deepest = 1, embers = 0, kingAttempts = 0;
   let lastKillT = 0, worstGap = 0, worstGapZone = 1;
   const deathZones = [];
@@ -265,7 +283,13 @@ function march(style, seed, runNo) {
     }
     hp = enc.player.hp;
     blocks[block()].seconds += STEP;
-    if (embers < 25 && t > (embers + 1) * 420) { embers++; s.embers = embers; }
+    if (embers < 25) {
+      emberTimer -= STEP;
+      if (emberTimer <= 0) {
+        if (metaRng() < EMBER_CAPTURE) { embers++; s.embers = embers; }
+        emberTimer += EMBER_MIN_GAP + metaRng() * (EMBER_MAX_GAP - EMBER_MIN_GAP);
+      }
+    }
 
     // A silent NaN turns every downstream number into confident nonsense, so it is
     // caught here rather than discovered in the report.
@@ -307,6 +331,12 @@ function march(style, seed, runNo) {
           gear.passed++;
         }
       }
+      // Rolled before the zone advances, exactly as onKill() does, so the gate is
+      // measured against the zone actually fought in. The march harness never called
+      // this, so every pet archetype has been simulated on its starting form while a
+      // real companion upgrades its health, attack power, armour and swing time.
+      if (rollAscension(s, mob.boss, metaRng)) { applyAscension(s); ascensions++; ascendedThisKill = true; }
+
       if (mob.final) { won = true; kingAttempts++; milestones.z100 = t / 3600; break; }
       if (mob.boss) {
         if (isMajorBossZone(s.zone)) {
@@ -327,6 +357,17 @@ function march(style, seed, runNo) {
       blocks[block()].kills++;
       if (t - fightStart > longestFight) { longestFight = t - fightStart; longestFightZone = s.zone; }
       fightStart = t;
+      // The attrition ledger for the block this fight happened in: what the character
+      // walked in with, what it walked out with, and what the rest between pulls put
+      // back. A zone that cannot wear anyone down shows up here as hpIn staying at 1.
+      {
+        const b = blocks[block()];
+        const hpOut = Math.max(0, enc.player.hp) / enc.player.maxHp;
+        b.hpInSum += hpEnteringFight;
+        b.hpOutSum += hpOut;
+        b.fights++;
+        b.restSum += Math.min(1, hpOut + REST_HEAL) - hpOut;
+      }
       // Advance the way js/main.js does, which is NOT what this harness used to do.
       //
       // It built a fresh Encounter after every kill, and the Encounter constructor sets
@@ -341,10 +382,10 @@ function march(style, seed, runNo) {
       // Rebuilding also handed back every cooldown, which the code comments in reset()
       // explicitly say must carry across pulls -- so long-cooldown burst was being
       // measured with perfect uptime it does not have.
-      const leveled = s.level !== lastLevel;
+      const leveled = s.level !== lastLevel || ascendedThisKill;
       enc.reset();
       if (leveled) {
-        kit = respec(); lastLevel = s.level;
+        if (s.level !== lastLevel) { kit = respec(); lastLevel = s.level; }
         enc = new Encounter(s, onEvent); hook(enc);
       } else if (gearChangedThisKill) {
         // Mirrors afterGearChange(): new stats, but health PERCENTAGES carry, because
@@ -356,8 +397,9 @@ function march(style, seed, runNo) {
         if (enc.companion) enc.companion.hp = enc.companion.maxHp * cPct;
       }
       enc.spawn();
-      gearChangedThisKill = false;
+      gearChangedThisKill = false; ascendedThisKill = false;
       hp = enc.player.hp;
+      hpEnteringFight = enc.player.hp / enc.player.maxHp;
     } else if (r === 'lose') {
       deaths++; deathZones.push(s.zone);
       blocks[block()].deaths++;
@@ -367,7 +409,10 @@ function march(style, seed, runNo) {
       s.zone = Math.max(1, s.checkpoint || 1);
       if (streak > STALL_DEATHS) s.zone = Math.max(1, s.zone - (streak - STALL_DEATHS) * STALL_DROP);
       s.mobsKilledInZone = 0;
+      // js/main.js pauses for RESPAWN_SECONDS before you are back on your feet.
+      t += 3;
       enc = new Encounter(s, onEvent); hook(enc); hp = enc.player.hp;
+      hpEnteringFight = 1;
     }
   }
 
@@ -435,6 +480,7 @@ function march(style, seed, runNo) {
       expressible,
       ilvl: Object.values(s.equipped).reduce((n, it) => n + (it ? it.ilvl : 0), 0),
     },
+    ascensions,
     sanity,
   };
 }
