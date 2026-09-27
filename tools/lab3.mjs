@@ -30,7 +30,7 @@ import { CLASSES, MAX_ACTIVE_ABILITIES } from '../js/data/classes.js';
 import { TALENTS, earnedTalentPoints, isPetTalent, branchState } from '../js/data/talents.js';
 import { setStateFor } from '../js/data/sets.js';
 import { rollAscension, applyAscension } from '../js/data/evolution.js';
-import { computeStats, computeCompanion } from '../js/systems/stats.js';
+import { computeStats, computeCompanion, setAbsorbScale } from '../js/systems/stats.js';
 import {
   xpToNext, MOBS_PER_ZONE, MAX_LEVEL, STALL_DEATHS, STALL_DROP, isMajorBossZone,
 } from '../js/data/mobs.js';
@@ -40,6 +40,8 @@ const RUNS = Number(process.argv[2] || 100);
 const OUT = process.argv[3] || null;
 const SEED_OFFSET = Number(process.argv[4] || 0);
 const STEP = 0.1;
+// Tuning sweep hook: P4_ABSORB scales the warrior bulwark rate for tools/p4-warrior.mjs.
+if (process.env.P4_ABSORB !== undefined) setAbsorbScale(Number(process.env.P4_ABSORB));
 const TIME_CAP = 10 * 60 * 60;
 
 function mulberry32(seed) {

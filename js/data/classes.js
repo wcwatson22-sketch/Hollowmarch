@@ -39,6 +39,13 @@ export const CLASSES = {
     armorType: 'plate',
     primary: 'ap',
     swingTime: 2.4,
+    // Bulwark: a share of every hit the plate turns aside comes back as health. The
+    // warrior is the only class with no continuous self-healing, which is what the
+    // attrition economy actually tests -- it carries the most health and the highest
+    // mitigation in the game and still died 48 times a march against the priest's 1.
+    // Scaled off armour rather than off damage so it rewards the stat the class already
+    // stacks instead of turning it into a warlock in plate.
+    absorbHeal: 0.16,
     autoName: 'Melee',
     autoProc: { id: 'autobleed', name: 'Open Wound', type: 'bleed', school: SCHOOL.PHYS,
       coef: 0.22, ticks: 4, tick: 1.8 },

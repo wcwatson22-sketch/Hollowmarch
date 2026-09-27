@@ -29,6 +29,10 @@ import { setStateFor, powersFor } from '../data/sets.js';
 // scene stops being littered with them once you have them all.
 export const LEECH_CAP = 0.10;
 
+// Tuning seam for the warrior bulwark sweep (tools/p4-warrior.mjs).
+let ABSORB_SCALE = 1;
+export const setAbsorbScale = (v) => { ABSORB_SCALE = v; };
+
 export const EMBER_PER = 0.01;    // each ember: +1%
 export const EMBER_COUNT = 25;    // ...and there are only ever this many
 export const EMBER_MAX = EMBER_PER * EMBER_COUNT;   // +25% at the end of it
@@ -222,6 +226,10 @@ export function computeStats(save) {
   // The swing between cooldowns. Nothing in any tree touched it before, so the share of
   // your damage that comes from simply attacking was the one part no decision could move.
   s.autoDmg = 1 + (m.autoDmg || 0);
+  // A share of what armour absorbs comes back as health. Class-level rather than a
+  // talent so it reads as what the class IS; see absorbRecover() in combat.js.
+  // Sweepable for tuning, the way the RNG and armour-depth seams are.
+  s.absorbHeal = (CLASSES[save.classId].absorbHeal || 0) * ABSORB_SCALE + (m.absorbHeal || 0);
   // Momentum: consecutive swings on the same target stack up, and the number of stacks
   // a character can hold is set by how much auto-attack talent it has actually bought.
   //
