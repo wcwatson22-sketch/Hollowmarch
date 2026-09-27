@@ -56,7 +56,32 @@ export const cleaveShare = (base, petHpFrac) => {
   return base * (CLEAVE_FLOOR + (1 - CLEAVE_FLOOR) * worn);
 };
 // Health recovered between pulls, as a fraction of max.
+//
+// Ten per cent per kill and ten mobs to a zone is a whole health bar returned every
+// zone, and measured against the cost of a fight that is the wrong shape at both ends.
+// A fight costs 16% of the bar at zone 3, peaks near 33% in the late thirties, and
+// falls to 11% by zone 93 -- so a flat 10% rest makes the midgame net about -20% per
+// fight and the eighties net about -1%, which is to say the game is hardest where the
+// player's toolkit is smallest and cannot threaten them at all once it is finished.
+//
+// Softening the mob-health curve fixed the first half and broke the second: with
+// shorter midgame fights the endgame went net POSITIVE, healing more between pulls than
+// the pulls cost. So the rest itself has to taper. Unchanged through zone 30, easing to
+// 4% by zone 100, which leaves the early game its safety net -- an early fight takes 85
+// damage against a pool of a few hundred, and a low flat rate kills level-5 characters
+// outright -- while the last third of the march accumulates damage the way the design
+// always said it should.
+//
+// This exact change was drafted in Phase 3 and reverted, correctly: at the time the
+// harness was fully healing the character after every kill, so the midgame looked
+// brutal and cutting recovery further was solving the opposite problem. It is the right
+// change now for the same reason it was the wrong one then -- the measurement changed.
 export const REST_HEAL = 0.10;
+export const REST_HEAL_DEEP = 0.04;
+export const restHealFrac = (zone) => {
+  const t = Math.min(1, Math.max(0, ((zone || 1) - 30) / 70));
+  return REST_HEAL + (REST_HEAL_DEEP - REST_HEAL) * t;
+};
 // Share of a drain's healing that goes to whichever of you and your companion is worse
 // off; the rest goes to the other. Weighted rather than "all to the lowest" so the split
 // still reads as sharing, and so a nearly-dead companion cannot swallow every drop.
@@ -750,7 +775,10 @@ export class Encounter {
     // Only a sip between pulls. Restoring 35% after every kill meant damage never
     // accumulated and a zone could not wear you down, so nothing was ever dangerous.
     // A zone is meant to be an attrition run: ten mobs on one health bar.
-    this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.player.maxHp * REST_HEAL);
+    this.player.hp = Math.min(
+      this.player.maxHp,
+      this.player.hp + this.player.maxHp * restHealFrac(this.save.zone),
+    );
   }
 
   /** Full reset after a wipe. Dying is the one thing that does take your buffs. */

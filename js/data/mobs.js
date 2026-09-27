@@ -94,9 +94,16 @@ export function makeMob(zone, index) {
     // The health cut is smaller and does a different job: it keeps the fight from
     // turning into a nine-minute war of attrition now that more builds can survive it.
     if (zone === FINAL_ZONE) {
+      // Divided back out of the phase shape on purpose. The shape exists to make the
+      // last twenty zones examine a finished build, and it multiplies mobHp, which
+      // bossHp is four times -- so adding it silently made the King 1.55x tougher as a
+      // side effect of a change aimed at trash. He is 5.3 x bossHp because that number
+      // was measured in Phase 4, and if it should move it should move because someone
+      // measured him again, not because the approach to him got steeper.
+      const kingHp = Math.round((bossHp(zone) / phaseShape(zone)) * 5.3);
       return {
         name: 'The Hollow King', color: '#2a2038', boss: true, final: true, zone,
-        maxHp: Math.round(bossHp(zone) * 5.3), hp: Math.round(bossHp(zone) * 5.3),
+        maxHp: kingHp, hp: kingHp,
         ap: mobAp(zone) * 1.48,
         armor: mobArmor(zone) * 1.7,
         swingTime: 1.8,
@@ -152,8 +159,47 @@ export function makeMob(zone, index) {
  */
 const earlyPad = (z) => 1 + 1.1 * Math.exp(-(z - 1) / 3.5);
 
+/**
+ * The march has phases, and until now the difficulty curve did not know about them.
+ *
+ * Measured over 300 faithful marches, a fight costs a share of the health bar that runs
+ * 16% at zone 3, peaks at 33% around zone 38, and falls to 11% by zone 93. Rest between
+ * pulls returns a flat 10%, so the twenties and thirties net about -20% of the character
+ * per fight -- five fights to a death against ten fights to a zone -- while the eighties
+ * net about -1% and cannot threaten anyone. The game was hardest where the player's
+ * toolkit was smallest and harmless once it was finished.
+ *
+ * The cause is not that midgame enemies hit hard; incoming is 9-37 per second there
+ * against 341 at the end. A fight's cost is its RATE multiplied by its LENGTH, and
+ * length peaked at 20.5 seconds exactly where the health pool was still small.
+ *
+ * Bending the depth exponent instead of shaping it was tried first and rejected: at
+ * 1.78 it cut enemy health to 0.58x by zone 100 as well, which was never wanted, and
+ * the whole game finished at 100% in three hours on three deaths. This leaves the curve
+ * alone and multiplies it by the phase structure:
+ *
+ *   1-10    Establishment   1.00  unchanged; the player is learning
+ *   11-20   ramp            ->0.66
+ *   21-60   Development     0.66  this was the wall, and is now the flattest stretch
+ *   61-80   Power           ->1.00 the character comes together and pulls ahead
+ *   81-100  Final Test      ->1.55 the last stretch examines what was built
+ *
+ * Net cost per fight goes from -20% / -1% to roughly -10% throughout, and fight length
+ * from 20.5s-down-to-4s to a band of 8-15s. Tuned against cost per fight rather than
+ * duration, because duration is unreachable as an objective -- player damage grows 645x
+ * across a march, so a fifteen-second midgame and a sixteen-second endgame together
+ * would need 192,000-health trash. See tools/p5-curve.mjs.
+ */
+const lerp = (a, b, t) => a + (b - a) * Math.min(1, Math.max(0, t));
+export const phaseShape = (z) => (
+  z <= 10 ? 1.0
+    : z <= 20 ? lerp(1.0, 0.66, (z - 10) / 10)
+      : z <= 60 ? 0.66
+        : z <= 80 ? lerp(0.66, 1.0, (z - 60) / 20)
+          : lerp(1.0, 1.55, (z - 80) / 20));
+
 export const mobHp    = (z) =>
-  Math.round((37.6 * Math.pow(z, 0.907) + 6.99 * Math.pow(z, 1.907)) * earlyPad(z));
+  Math.round((37.6 * Math.pow(z, 0.907) + 6.99 * Math.pow(z, 1.907)) * earlyPad(z) * phaseShape(z));
 export const bossHp   = (z) => Math.round(mobHp(z) * 4);
 // Linear mob damage could not keep up with what a capped character actually becomes.
 // Player health and armour both grow with item level AND with rarity, and rarity
