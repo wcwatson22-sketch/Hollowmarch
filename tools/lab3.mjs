@@ -70,6 +70,13 @@ const STYLES = [
   // ---- hunter --------------------------------------------------------------------
   { id: 'hun-ranger',   cls: 'hunter',  solo: true,  arch: 'ability/physical', types: ['physical', 'arcane'], want: ['physicalDmg', 'abilityDmg'] },
   { id: 'hun-poison',   cls: 'hunter',  solo: true,  arch: 'damage over time', types: ['poison', 'bleed'],    want: ['dotDmg', 'poisonDmg', 'dotCrit'] },
+  // The same poison build a PLAYER would assemble: poison talents, but a burst ability
+  // in the third slot instead of a second damage-over-time effect. hun-poison above is
+  // kept as the deliberate pure-DoT floor -- it restricts itself to poison and bleed
+  // types and therefore excludes Explosive Shot, which the game's own suggested kit for
+  // a solo hunter already contains. Measuring the floor and calling it the build was
+  // what made poison hunter look broken for five phases.
+  { id: 'hun-venom',    cls: 'hunter',  solo: true,  arch: 'poison + burst',   types: ['poison', 'bleed', 'fire', 'arcane'], want: ['dotDmg', 'poisonDmg', 'dotCrit'] },
   { id: 'hun-pack',     cls: 'hunter',  pet: true,   arch: 'companion',        types: ['physical'],           want: ['petPow', 'petHaste', 'petHp'] },
   { id: 'hun-crit',     cls: 'hunter',  solo: true,  arch: 'critical strike',  types: ['physical'],           want: ['crit', 'critDmg'] },
   { id: 'hun-haste',    cls: 'hunter',  solo: true,  arch: 'attack speed',     types: ['physical'],           want: ['haste'] },
