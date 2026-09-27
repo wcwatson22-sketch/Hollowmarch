@@ -173,8 +173,12 @@ function march(style, seed, runNo) {
   const castCounts = {};          // how often each ability actually fires
   const killGaps = [];
   let longestFight = 0, longestFightZone = 1, fightStart = 0;
-  const block = () => Math.floor((Math.min(100, Math.max(1, s.zone)) - 1) / 10);
-  const blocks = Array.from({ length: 10 }, () => ({
+  // Five-zone resolution: the midgame investigation needs to separate zones 11-15 from
+  // 16-20, and ten-zone blocks can be recovered by pairing these.
+  const BLOCK_SIZE = 5;
+  const BLOCK_COUNT = 100 / BLOCK_SIZE;
+  const block = () => Math.floor((Math.min(100, Math.max(1, s.zone)) - 1) / BLOCK_SIZE);
+  const blocks = Array.from({ length: BLOCK_COUNT }, () => ({
     deaths: 0, kills: 0, seconds: 0, taken: 0, dealt: 0, healed: 0, upgrades: 0,
     hpInSum: 0, hpOutSum: 0, fights: 0, restSum: 0,
   }));

@@ -46,13 +46,15 @@ for (const c of ['warrior', 'hunter', 'priest', 'warlock']) {
 }
 
 console.log('\nDEATHS BY ZONE BLOCK');
-const blocks = Array.from({ length: 10 }, () => ({ deaths: 0, kills: 0, seconds: 0, taken: 0, dealt: 0, healed: 0, upgrades: 0 }));
-for (const r of rows) for (let i = 0; i < 10; i++) for (const k of Object.keys(blocks[i])) blocks[i][k] += r.blocks[i][k];
+const NB = rows[0].blocks.length;
+const blocks = Array.from({ length: NB }, () => ({ deaths: 0, kills: 0, seconds: 0, taken: 0, dealt: 0, healed: 0, upgrades: 0, hpInSum: 0, hpOutSum: 0, fights: 0, restSum: 0 }));
+for (const r of rows) for (let i = 0; i < NB; i++) for (const k of Object.keys(blocks[i])) blocks[i][k] += (r.blocks[i][k] || 0);
 const totalD = blocks.reduce((s, b) => s + b.deaths, 0);
 console.log('zones     deaths   share  kills  sec/kill  taken/s  upgrades');
-for (let i = 0; i < 10; i++) {
+const SZ = 100 / NB;
+for (let i = 0; i < NB; i++) {
   const b = blocks[i];
-  console.log(`${i * 10 + 1}-${i * 10 + 10}`.padEnd(10) + String(b.deaths).padStart(7)
+  console.log(`${i * SZ + 1}-${i * SZ + SZ}`.padEnd(10) + String(b.deaths).padStart(7)
     + pct(b.deaths, totalD).padStart(8) + String(b.kills).padStart(7)
     + (b.kills ? (b.seconds / b.kills).toFixed(1) : '-').padStart(10)
     + (b.seconds ? (b.taken / b.seconds).toFixed(0) : '-').padStart(9)
