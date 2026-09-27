@@ -452,6 +452,29 @@ export class Encounter {
     }
   }
 
+  /**
+   * A share of what your ARMOUR just stopped, returned as health.
+   *
+   * The attrition curve says the warrior's problem is not toughness. Measured over 300
+   * faithful marches it carries the most health and the highest mitigation in the game
+   * and still enters a zone-26 fight at 70% where a priest enters at 98%, because the
+   * priest's Renew ticks the whole time and the warrior has no continuous recovery at
+   * all. Attrition is a race between damage taken and health returned, and the warrior
+   * was only entered in one half of it.
+   *
+   * Handing it leech would have solved that by making it a warlock in plate. This pays
+   * off the stat it already stacks and nothing else: it scales with armour rather than
+   * with damage dealt, so a glass-cannon warrior gets almost none of it and a
+   * deliberately armoured one gets a real defensive engine. It also gives armour a
+   * second job, which it needed -- past zone 60 another 100 points of it was worth
+   * about 1% effective health and very little else.
+   */
+  absorbRecover(absorbed) {
+    const rate = this.stats.absorbHeal || 0;
+    if (rate <= 0 || !(absorbed > 0)) return;
+    this.healPlayer(absorbed * rate, 'Bulwark');
+  }
+
   /** A share of damage dealt, returned as health. Capped in computeStats. */
   applyLeech(amount) {
     const rate = this.stats.leech || 0;
@@ -687,11 +710,13 @@ export class Encounter {
           const splash = mitigate(this.enemy.ap * share, this.stats.armor, this.enemy.zone);
           this.player.hp -= splash;
           this.onEvent({ type: 'dmg', on: 'player', amount: splash });
+          this.absorbRecover(this.enemy.ap * share - splash);
           this.reflect();
         } else {
           const dmg = mitigate(this.enemy.ap, this.stats.armor, this.enemy.zone);
           this.player.hp -= dmg;
           this.onEvent({ type: 'dmg', on: 'player', amount: dmg });
+          this.absorbRecover(this.enemy.ap - dmg);
           this.reflect();
         }
       }
